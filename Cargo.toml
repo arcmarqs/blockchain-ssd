@@ -1,0 +1,22 @@
+[package]
+name = "blockchain-ssd"
+version = "0.1.0"
+authors = ["arcmarqs <maramadeu@gmail.com>"]
+edition = "2021"
+repository = "https://github.com/arcmarqs/blockchain-ssd.git"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+time = "0.3.7"
+sha2 = "0.10.2"
+tokio = { version = "1.17", features = [full] }
+grpc = "~0.7"
+protobuf = "~2"
+futures = "~0.3"
+
+[build-dependencies]
+protoc-rust-grpc = "~0.7"
+
+
