@@ -1,14 +1,14 @@
 use chrono::prelude::*;
 use sha2::Sha256;
-use primitive_types::U256;
+use primitive_types::H256;
 use random::prelude::*;
 
 pub struct Block {
    pub id: u64,
    pub timestamp: i64,
    pub nonce: u64,
-   pub prev_hash: U256,
-   pub hash: U256,
+   pub prev_hash: H256,
+   pub hash: H256,
    pub Data: String    
 }
 
@@ -16,7 +16,7 @@ pub struct Chain {
     pub blocks: Vec<Block>
 }
 
-fn hash(val: T) -> U256 {
+fn hash(val: T) -> H256 {
     let mut hasher = Sha256::new();
     hasher.update(val);
     let result = hasher.finalize();
