@@ -15,5 +15,9 @@ impl Key {
        
         Key(k)
     }
+
+    fn dist(other_key: Key) -> U256 {
+        bitxor(other_key);
+    }
 }
 

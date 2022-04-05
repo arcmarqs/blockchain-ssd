@@ -1,1 +1,1 @@
-use std::collections::{hashmap};
+use std::collections::hashmap;
