@@ -1,9 +1,11 @@
 
 use primitive_types::{H256,U256};
+use crate::key::{Key};
 
+#[derive(Debug,Clone,Eq,Ord,PartialEq,PartialOrd)]
 pub struct KadNode {
-    kId: H256,
-    ID: String,  // string version of kId, for readability
-    IP: String,
-    port: U256
+    kId: Key,
+    id_string: String,  // string version of kId, for readability
+    ip: String,
+    port: u8
 }
