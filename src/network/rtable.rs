@@ -5,6 +5,8 @@ pub struct Rtable{head: Box<Node>}
 
 impl Rtable {
     pub fn new() -> Rtable {
-        
+        Rtable {
+        head : Box::new(Node::new()),
+        }
     }
 }
