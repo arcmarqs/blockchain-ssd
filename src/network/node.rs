@@ -1,16 +1,18 @@
 use std::{collections::VecDeque, borrow::Borrow};
+use to_binary::BinaryString;
+
 use crate::key::{Key};
 
 const k_MAX_ENTRIES: usize = 20;
 #[derive(Debug,Clone,PartialEq,Eq,Ord,PartialOrd)]
 pub struct Contact {
-    uid: Key,
-    ip: String,
-    port: u8,
+    pub uid: Key,
+    pub ip: String,
+    pub port: u16,
 }
 
 impl Contact {
-    pub fn new(uid: Key, ip: String, port: u8) -> Contact {
+    pub fn new(uid: Key, ip: String, port: u16) -> Contact {
         Contact {
             uid,
             ip,
@@ -62,9 +64,9 @@ impl Bucket {
 }
 #[derive(Debug,Clone)]
 pub struct Node {
-   left : Option<Box<Node>>,
-   right : Option<Box<Node>>,
-   bucket : Option<Bucket>,
+  pub left : Option<Box<Node>>,
+  pub right : Option<Box<Node>>,
+  pub bucket : Option<Bucket>,
 } 
 
 impl Node {
@@ -77,12 +79,12 @@ impl Node {
     }
     
     #[inline]
-    fn set_left(&mut self, left: Node) {
+    pub fn set_left(&mut self, left: Node) {
         self.left = Some(Box::new(left));
     }
 
     #[inline]
-    fn set_right(&mut self, right: Node) {
+    pub fn set_right(&mut self, right: Node) {
         self.right = Some(Box::new(right));
     }
 
@@ -92,22 +94,128 @@ impl Node {
     }
 
     #[inline]
-    fn get_left(&self) -> Option<&Box<Node>> {
+    pub fn get_left(&self) -> Option<&Box<Node>> {
         self.left.as_ref()
     }
 
     #[inline]
-    fn get_right(&self) -> Option<&Box<Node>> {
+    pub fn get_right(&self) -> Option<&Box<Node>> {
         self.right.as_ref()
     }
 
     #[inline]
-    fn get_bucket(&self) -> Option<&Bucket> {
+    pub fn get_bucket(&self) -> Option<&Bucket> {
         self.bucket.as_ref()
     }
 
     #[inline]
-    fn get_mut_bucket(&mut self) -> Option<&mut Bucket> {
+    pub fn get_mut_bucket(&mut self) -> Option<&mut Bucket> {
         self.bucket.as_mut()
     }
+
+    pub fn init_tree(&mut self, con: Contact,mut index: usize,mut chunk: usize) {
+        // if we reach the leaf
+        if chunk == 31 && index == 7 {
+           let mut b = Bucket::new();
+           b.insert(Box::new(con));
+           self.bucket = Some(b);
+           return;
+        } else if index == 8 {
+            chunk += 1;
+            index = 0;
+        } 
+        let bits = BinaryString::from(con.uid.as_bytes()[chunk]);
+        let mut n = Node::new();
+        n.init_tree(con,index+1,chunk);
+
+        match bits.0.chars().nth(index) {
+            Some('0') => self.set_left(n),
+            Some('1') => self.set_right(n),
+            Some(_) => panic!("Invalid index"),
+            None => panic!("Out of string bounds"),
+        }
+    }
+
+    pub fn insert(&mut self,con: Contact, mut index: usize, mut chunk: usize) {
+        if self.bucket.is_some() {
+            if self.bucket.as_mut().unwrap().0.len() == 20 {
+                //TODO function to ping a node to remove or keep in bucket
+                return;
+            }
+            self.bucket.as_mut().unwrap().insert(Box::new(con));
+            return;
+        } else if chunk == 31 && index == 7 {
+            let mut b = Bucket::new();
+            b.insert(Box::new(con));
+            self.bucket = Some(b);
+            return;
+         } else if index == 8 {
+             chunk += 1;
+             index = 0;
+         } 
+         
+         let bits = BinaryString::from(con.uid.as_bytes()[chunk]);
+         match bits.0.chars().nth(index) {
+             Some('0') =>{
+                 match self.left.as_mut() {
+                     None =>{
+                        let mut node = Node::new();
+                        let mut b = Bucket::new();
+                        b.insert(Box::new(con));
+                        node.set_bucket(b);
+                        self.set_left(node);
+                     } ,
+                     Some(node) => node.insert(con,index+1,chunk),
+                 }
+             },
+             Some('1') => { 
+                match self.right.as_mut() {
+                    None => {
+                        let mut node = Node::new();
+                        let mut b = Bucket::new();
+                        b.insert(Box::new(con));
+                        node.set_bucket(b);
+                        self.set_right(node);
+                    },
+                    Some(node) => node.insert(con,index+1,chunk),
+                }
+             },
+             Some(_) => panic!("Invalid index"),
+             None => panic!("Out of string bounds"),
+         }
+    }
+
+    //returns a reference to the node containing the k-bucket for the id
+    pub fn lookup(&self, id: Key, mut index: usize, mut chunk: usize) -> &Node {
+        if chunk == 31 && index == 7 {
+            return &self;
+         } else if index == 8 {
+             chunk += 1;
+             index = 0;
+         } 
+         let bits = BinaryString::from(id.as_bytes()[chunk]);
+         match bits.0.chars().nth(index) {
+             Some('0') =>{
+                 match &self.left {
+                     None => {
+                         println!("left");
+                         self 
+                        },
+                     Some(node) => node.lookup(id,index+1,chunk),
+                 }
+             },
+             Some('1') => { 
+                match &self.right {
+                    None => {
+                        println!("right");
+                        self
+                    },
+                    Some(node) => node.lookup(id,index+1,chunk),
+                }
+             },
+             Some(_) => panic!("Invalid index"),
+             None => panic!("Out of string bounds"),
+         }
+    }
+    
 }
