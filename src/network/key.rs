@@ -17,10 +17,11 @@ impl Key {
     }
 
     #[inline]
-    pub fn dist(self, other_key: Key) -> H256 {
+    pub fn distance(self, other_key: Key) -> H256 {
         self.0 ^ other_key.0
     }
 
+    #[inline]
     pub fn as_bytes(&self) -> &[u8]{
         self.0.as_bytes()
     }
