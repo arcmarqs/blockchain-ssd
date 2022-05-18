@@ -1,41 +1,47 @@
 // Kademlia Protocol messages
+syntax = "proto3";
+package kadproto;
 
 service Kademlia {
-    rpc Ping(PingReq) returns (PingRepl) {}
+    rpc Ping(PingM) returns (PingM) {}
     rpc Store(StoreReq) returns(StoreRepl) {}
     rpc Find_Node(FNodeReq) returns(FNodeRepl) {}
     rpc Find_Value(FValueReq) returns(FValueRepl) {}
 }
 
-message PingReq {
-    required string cookie = 1; // "Magic cookie" used to track this exact ping request
-}
-
-message PingRepl {
-    required string cookie = 1; // used to match the reply to the request
-    required bool alive = 2;
+message PingM {
+    string cookie = 1; // "Magic cookie" used to track this exact ping request
+    bytes id = 2;
 }
 
 message StoreReq {
-   required string cookie = 1;
+    string cookie = 1;
 }
 
 message StoreRepl {
-   required string cookie = 1;
+    string cookie = 1;
 }
 
 message FNodeReq {
-   required string cookie = 1;
+    string cookie = 1;
+    optional contact node = 2;
 }
 
 message FNodeRepl {
-    required string cookie = 1;
+    string cookie = 1;
+    repeated contact knode = 2;
 }
 
 message FValueReq {
-   required string cookie = 1;
+   string cookie = 1;
 }
 
 message FValueRepl {
-    required string cookie = 1;
+    string cookie = 1;
+}
+
+message contact {
+    bytes uid = 1;
+    string ip = 2;
+    int32 port = 3;
 }

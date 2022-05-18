@@ -1,7 +1,7 @@
 
-use crate::network::node::{Contact,Node,Bucket};
-use crate::network::key::Key;
-use crate::network::kad::{KadNode};
+use super::node::{Contact,Node,Bucket};
+use super::kad::{KadNode};
+use super::key::Key;
 use to_binary::BinaryString;
 
 #[derive(Debug,Clone)]

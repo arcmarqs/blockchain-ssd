@@ -1,7 +1,6 @@
 use std::{collections::VecDeque, borrow::Borrow};
 use to_binary::BinaryString;
-
-use crate::key::{Key};
+use super::key::{Key};
 
 const k_MAX_ENTRIES: usize = 20;
 #[derive(Debug,Clone,PartialEq,Eq,Ord,PartialOrd)]
@@ -141,7 +140,7 @@ impl Node {
     pub fn insert(&mut self,con: Contact,id: Key, mut index: usize, mut chunk: usize) {
         if self.bucket.is_some() {
             if self.bucket.as_ref().unwrap().is_full() {
-                //checking the range of the node 
+                //checking the range of the node  [87,234,234,]
                 let con_byte = con.uid.as_bytes()[chunk];
                 let byte = id.as_bytes()[chunk];
                 let bits = BinaryString::from(con_byte ^ byte);

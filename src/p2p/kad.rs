@@ -1,5 +1,6 @@
-use crate::network::{rtable::Rtable,node::{Contact,Node}};
-use crate::key::{Key};
+use super::key::Key;
+use super::rtable::Rtable;
+use super::node::{Contact,Node};
 use to_binary::BinaryString;
 
 
