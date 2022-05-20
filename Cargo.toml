@@ -1,13 +1,17 @@
 [package]
 name = "blockchain-ssd"
 publish = false
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [[bin]]
-name = "auction-peer"
-path = "src/peer.rs"
+name = "p2p-server"
+path = "src/server.rs"
+
+[[bin]]
+name = "p2p-client"
+path = "src/client.rs"
 
 [dependencies]
 primitive-types = "0.11.1"

@@ -1,7 +1,8 @@
 
-use super::node::{Contact,Node,Bucket};
-use super::kad::{KadNode};
-use super::key::Key;
+use super::{node::{Contact,Node,Bucket},
+            kad::{KadNode},
+            key::Key
+};
 use to_binary::BinaryString;
 
 #[derive(Debug,Default,Clone)]

@@ -16,6 +16,8 @@ message PingM {
 
 message StoreReq {
     string cookie = 1;
+    bytes key = 2;
+    string value = 3;
 }
 
 message StoreRepl {
@@ -24,7 +26,7 @@ message StoreRepl {
 
 message FNodeReq {
     string cookie = 1;
-    optional contact node = 2;
+    contact node = 2;
 }
 
 message FNodeRepl {
@@ -34,10 +36,13 @@ message FNodeRepl {
 
 message FValueReq {
    string cookie = 1;
+   string value = 2;
 }
 
 message FValueRepl {
     string cookie = 1;
+    contact node = 2;
+    optional string value = 3;
 }
 
 message contact {
