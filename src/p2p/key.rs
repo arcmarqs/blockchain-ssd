@@ -3,7 +3,7 @@ use primitive_types::H256;
 use sha2::Sha256;
 use to_binary::BinaryString;
 
-#[derive(Debug, Hash, Eq, Clone, Ord, Copy, PartialEq, PartialOrd)]
+#[derive(Debug,Default, Hash, Eq, Clone, Ord, Copy, PartialEq, PartialOrd)]
 pub struct Key(H256);
 
 impl Key {

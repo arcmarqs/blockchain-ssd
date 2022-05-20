@@ -4,7 +4,7 @@ use super::kad::{KadNode};
 use super::key::Key;
 use to_binary::BinaryString;
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Default,Clone)]
 pub struct Rtable{pub head: Node}
 
 impl Rtable {

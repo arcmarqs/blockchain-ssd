@@ -1,10 +1,12 @@
-use super::key::Key;
-use super::rtable::Rtable;
-use super::node::{Contact,Node};
 use to_binary::BinaryString;
+use super::{
+    key::Key,
+    rtable::Rtable,
+    node::{Contact,Node}
+};
 
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Default)]
 pub struct KadNode {
     pub uid: Key,
     ip: String,

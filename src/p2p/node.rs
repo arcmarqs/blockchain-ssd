@@ -3,7 +3,7 @@ use to_binary::BinaryString;
 use super::key::{Key};
 
 const k_MAX_ENTRIES: usize = 20;
-#[derive(Debug,Clone,PartialEq,Eq,Ord,PartialOrd)]
+#[derive(Debug,Default,Clone,PartialEq,Eq,Ord,PartialOrd)]
 pub struct Contact {
     pub uid: Key,
     pub ip: String,
@@ -19,7 +19,7 @@ impl Contact {
         }
     }
 }
-#[derive(Debug,Clone)]
+#[derive(Debug,Default,Clone)]
 pub struct Bucket(VecDeque<Box<Contact>>);
 
 impl Bucket {
@@ -86,7 +86,7 @@ impl Bucket {
         self.0.len()
     }
 }
-#[derive(Debug,Clone)]
+#[derive(Debug,Default,Clone)]
 pub struct Node {
   pub left : Option<Box<Node>>,
   pub right : Option<Box<Node>>,
