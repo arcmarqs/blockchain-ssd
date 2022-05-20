@@ -1,4 +1,4 @@
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{transport::{Server, Channel}, Request, Response, Status};
 use to_binary::BinaryString;
 use std::{io, net::SocketAddr};
 mod p2p;
@@ -19,37 +19,19 @@ pub mod kademlia {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    
+
     let mut buffer = String::new();
     io::stdin().read_line(&mut buffer)?;
-    if buffer.chars().nth(0) != Some('8'){
-    println!("{:?}",buffer.clone());
-    let addr =SocketAddr::new(buffer[0..buffer.len()-1].parse()?,50051);
-    let protocol = protocol::KademliaProtocol::default();
+    let addr = SocketAddr::new(buffer[0..buffer.len() - 1].parse()?,50051);
+    let ip = addr.ip().to_string();
+    let port = addr.port();
+    let protocol = protocol::KademliaProtocol::new(ip,port);
     let svc = protocol::create_server(protocol);
-
     Server::builder()
         .add_service(svc)
         .serve(addr)
         .await?;
-    }
-    
-    buffer = String::new();
-    io::stdin().read_line(&mut buffer)?;
-    if buffer.chars().nth(0) == Some('1') {
-    let mut client = KademliaClient::connect("http://0.0.0.0:50051").await?;
 
-    let request = Request::new(
-        PingM {
-            cookie: "1343434".to_owned(),
-            id: vec![1,2,3],
-        }
-    );
-
-    let response = client.ping(request).await?;
-
-    println!("RESPONSE={:?}", response);
-    }
     /* 
     let ip = String::from("127.0.0.");
     let port = 5050;
@@ -69,5 +51,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{:?}",origin.lookup(look).bucket.as_ref().unwrap().len());
     println!("{:?}",origin.lookup(k.uid).bucket.as_ref().unwrap().len());
     */
+
     Ok(())
 }

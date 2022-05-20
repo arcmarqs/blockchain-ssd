@@ -2,6 +2,7 @@ use tonic::{transport::Server, Request, Response, Status};
 use to_binary::BinaryString;
 use std::sync::Arc;
 use std::{io, net::SocketAddr};
+use tokio::sync::Mutex;
 
 use super::kad::KadNode;
 use kademlia::{ 
@@ -15,8 +16,17 @@ pub mod kademlia {
 }
 
 #[derive(Debug, Default,Clone)]
-pub struct KademliaProtocol{}
+pub struct KademliaProtocol{
+    node: KadNode,
+}
 
+impl KademliaProtocol {
+    pub fn new(ip: String, port: u16) -> KademliaProtocol {
+        KademliaProtocol {
+            node : KadNode::new(ip,port),
+        }
+    }
+}
 #[tonic::async_trait]
 impl Kademlia for KademliaProtocol {
    async fn ping(&self, request: Request<PingM>) -> Result<Response<PingM>,Status>{
@@ -25,9 +35,10 @@ impl Kademlia for KademliaProtocol {
         }
 
         let req = request.into_inner();
+        let uid = self.node.uid.as_bytes().clone();
         let reply = PingM {
             cookie: req.cookie,
-            id: vec![12,13,14],
+            id: uid.to_owned(),
         };
         
         Ok(Response::new(reply))
