@@ -20,7 +20,8 @@ impl Rtable {
         self.head.insert(con,uid,0,0);
     }
 
-    pub fn lookup(&self, id: Key) -> &Node {
+    //returns k closest nodes to the key
+    pub fn lookup(&self, id: Key) -> Vec<&Contact>{
         self.head.lookup(id,0,0)
     }
 }

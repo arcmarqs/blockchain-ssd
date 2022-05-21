@@ -26,6 +26,10 @@ impl KademliaProtocol {
             node : KadNode::new(ip,port),
         }
     }
+
+    pub fn create_server(self) -> KademliaServer<KademliaProtocol> {
+        KademliaServer::<KademliaProtocol>::new(self)
+    }
 }
 
 #[tonic::async_trait]
@@ -56,6 +60,8 @@ impl Kademlia for KademliaProtocol {
     async fn find_value(&self, request: Request<FValueReq>) -> Result<Response<FValueRepl>,Status>{
         let reply = FValueRepl {
             cookie: String::from("10"),
+            value: None,
+            node: None,
         };
 
         Ok(Response::new(reply))
@@ -74,8 +80,4 @@ impl Kademlia for KademliaProtocol {
 
         Ok(Response::new(reply))
     }
-}
-
-pub fn create_server(protocol: KademliaProtocol) -> KademliaServer<KademliaProtocol> {
-    KademliaServer::<KademliaProtocol>::new(protocol)
 }

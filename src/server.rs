@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ip = addr.ip().to_string();
     let port = addr.port();
     let protocol = protocol::KademliaProtocol::new(ip,port);
-    let svc = protocol::create_server(protocol);
+    let svc = protocol.create_server();
     Server::builder()
         .add_service(svc)
         .serve(addr)

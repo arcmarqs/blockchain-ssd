@@ -11,16 +11,19 @@ pub mod kademlia {
     tonic::include_proto!("kadproto");
 }
 
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = KademliaClient::connect("http://0.0.0.0:50051").await?;
 
-    let request = tonic::Request::new(
+    let request = Request::new(
         PingM {
             cookie: "234312".to_owned(),
             id: vec![1,2,3,4],
         }
     );
+
+
 
     let response = client.ping(request).await?;
 

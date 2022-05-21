@@ -32,7 +32,7 @@ impl KadNode {
         let uid = Key::new(ip + &port.to_string());
     }
 
-    pub fn lookup(&self,id: Key) -> &Node {
+    pub fn lookup(&self,id: Key) -> Vec<&Contact> {
         self.rtable.lookup(id)
     }
 

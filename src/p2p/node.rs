@@ -218,7 +218,57 @@ impl Node {
     }
 
     //returns a reference to the node containing the k-bucket for the id
-    pub fn lookup(&self, id: Key, mut index: usize, mut chunk: usize) -> &Node {
+    pub fn lookup(&self, id: Key) -> Vec<&Contact> {
+        let mut index = 0;
+        let mut chunk = 0;
+        let mut curr_node = self;
+        let mut kclosest = Vec::<&Contact>::with_capacity(k_MAX_ENTRIES); 
+        while chunk != 31 && index != 7 {
+
+            if index == 8 {
+                chunk += 1;
+                index = 0;
+            }
+
+            let bits = BinaryString::from(id.as_bytes()[chunk]);
+            match bits.0.chars().nth(index) {
+                Some('0') =>{
+                    match &self.left {
+                        None => {
+                            if let Some(bucket) = self.bucket {
+                                
+                            }
+                           },
+                        Some(node) =>{
+                            curr_node = node;
+                            index +=1;
+                            continue;
+                        },
+                    }
+                },
+                Some('1') => { 
+                   match &self.right {
+                       None => {
+                        
+                       },
+                       Some(node) => { 
+                        curr_node = node;
+                        index +=1;
+                        continue;
+                        },
+                   }
+                },
+                Some(_) => panic!("Invalid index"),
+                None => panic!("Out of string bounds"),
+            }
+        }
+
+        todo!()
+
+
+
+
+        /* 
         if chunk == 31 && index == 7 {
             return &self;
          } else if index == 8 {
@@ -245,7 +295,8 @@ impl Node {
              },
              Some(_) => panic!("Invalid index"),
              None => panic!("Out of string bounds"),
-         }
+         } */
     }
+
     
 }
