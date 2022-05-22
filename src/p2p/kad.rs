@@ -1,16 +1,16 @@
 use to_binary::BinaryString;
+
 use super::{
     key::Key,
     rtable::Rtable,
-    node::{Contact,Node}
+    node::{Node, Contact},
 };
-
 
 #[derive(Debug,Clone,Default)]
 pub struct KadNode {
     pub uid: Key,
-    ip: String,
-    port: u16,
+    pub ip: String,
+    pub port: u16,
     rtable: Rtable,
 }
 
@@ -32,15 +32,15 @@ impl KadNode {
         let uid = Key::new(ip + &port.to_string());
     }
 
-    pub fn lookup(&self,id: Key) -> Vec<&Contact> {
+    pub fn lookup(&self,id: Key) -> Vec<Box<Contact>> {
         self.rtable.lookup(id)
     }
 
     pub fn as_contact(&self) -> Contact {
         Contact {
-            uid: self.uid.clone(),
+            uid: self.uid,
             ip: self.ip.clone(),
-            port: self.port.clone(),
+            port: self.port,
         }
     }
 

@@ -26,12 +26,12 @@ message StoreRepl {
 
 message FNodeReq {
     string cookie = 1;
-    contact node = 2;
+    kcontact node = 2;
 }
 
 message FNodeRepl {
     string cookie = 1;
-    repeated contact knode = 2;
+    repeated kcontact knode = 2;
 }
 
 message FValueReq {
@@ -41,11 +41,11 @@ message FValueReq {
 
 message FValueRepl {
     string cookie = 1;
-    contact node = 2;
+    kcontact node = 2;
     optional string value = 3;
 }
 
-message contact {
+message kcontact {
     bytes uid = 1;
     string ip = 2;
     int32 port = 3;

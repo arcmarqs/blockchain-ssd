@@ -1,30 +1,40 @@
-use std::{collections::VecDeque, borrow::Borrow};
+use std::collections::VecDeque;
 use to_binary::BinaryString;
-use super::key::{Key};
+use super::{key::{Key}, protocol::kademlia::Kcontact};
 
-const k_MAX_ENTRIES: usize = 20;
+const K_MAX_ENTRIES: usize = 20;
+
 #[derive(Debug,Default,Clone,PartialEq,Eq,Ord,PartialOrd)]
 pub struct Contact {
-    pub uid: Key,
-    pub ip: String,
-    pub port: u16,
+    pub(crate) uid: Key,
+    pub(crate) ip: String,
+    pub(crate) port: u16,
 }
 
 impl Contact {
     pub fn new(uid: Key, ip: String, port: u16) -> Contact {
         Contact {
-            uid,
+           uid: uid,
             ip,
-            port,
+            port: port,
+        }
+    }
+
+    pub fn as_kcontact(&self) -> Kcontact {
+        Kcontact {
+            uid: self.uid.as_bytes().to_owned(),
+            ip: self.ip.clone(),
+            port: self.port as i32,
         }
     }
 }
+
 #[derive(Debug,Default,Clone)]
 pub struct Bucket(VecDeque<Box<Contact>>);
 
 impl Bucket {
     pub fn new() -> Bucket {
-        Bucket(VecDeque::with_capacity(k_MAX_ENTRIES))
+        Bucket(VecDeque::with_capacity(K_MAX_ENTRIES))
     }
 
     pub fn insert(&mut self, node: Box<Contact>) {
@@ -61,16 +71,16 @@ impl Bucket {
         }
     }
 
-    pub fn split(&self,id: Key,index: usize,chunk: usize) -> (Bucket,Bucket) {
+    pub fn split(&mut self,id: Key,index: usize,chunk: usize) -> (Bucket,Bucket) {
         let mut bucket0 = Bucket::new();
         let mut bucket1 = Bucket::new();
         let byte = id.as_bytes()[chunk];
-        for con in self.0.iter() {
+        for con in self.0.drain(0..) {
             let con_byte = con.uid.as_bytes()[chunk];
             let bits = BinaryString::from(con_byte ^ byte);
             match bits.0.chars().nth(index) {
-                Some('1') => bucket1.insert(con.to_owned()),
-                Some('0') => bucket0.insert(con.to_owned()),
+                Some('1') => bucket1.insert(con),
+                Some('0') => bucket0.insert(con),
                 _ => panic!("Invalid bit"),
             };
         }
@@ -84,6 +94,17 @@ impl Bucket {
 
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    // returns the vector sorted by increasing distance to the given key
+    pub fn get_sorted(&self, id: Key) -> Vec<Box<Contact>> {
+        let dist = |a:&Box<Contact>, b: &Box<Contact>| {
+            id.distance(a.uid).partial_cmp(&id.distance(b.uid))
+        };
+
+        let mut vec = Vec::from(self.0.clone());
+        vec.sort_by(|a,b| dist(a,b).unwrap());
+        vec
     }
 }
 #[derive(Debug,Default,Clone)]
@@ -150,7 +171,7 @@ impl Node {
                         println!("full bucket not split");
                     }
                     Some('0') => {
-                        let (b1,mut b0) = self.bucket.as_ref().unwrap().split(id,index,chunk);
+                        let (b1,mut b0) = self.bucket.as_mut().unwrap().split(id,index,chunk);
                         b0.insert(Box::new(con));
                         let mut outrange = Node::new();
                         let mut inrange = Node::new();
@@ -218,59 +239,10 @@ impl Node {
     }
 
     //returns a reference to the node containing the k-bucket for the id
-    pub fn lookup(&self, id: Key) -> Vec<&Contact> {
-        let mut index = 0;
-        let mut chunk = 0;
-        let mut curr_node = self;
-        let mut kclosest = Vec::<&Contact>::with_capacity(k_MAX_ENTRIES); 
-        while chunk != 31 && index != 7 {
-
-            if index == 8 {
-                chunk += 1;
-                index = 0;
-            }
-
-            let bits = BinaryString::from(id.as_bytes()[chunk]);
-            match bits.0.chars().nth(index) {
-                Some('0') =>{
-                    match &self.left {
-                        None => {
-                            if let Some(bucket) = self.bucket {
-                                
-                            }
-                           },
-                        Some(node) =>{
-                            curr_node = node;
-                            index +=1;
-                            continue;
-                        },
-                    }
-                },
-                Some('1') => { 
-                   match &self.right {
-                       None => {
-                        
-                       },
-                       Some(node) => { 
-                        curr_node = node;
-                        index +=1;
-                        continue;
-                        },
-                   }
-                },
-                Some(_) => panic!("Invalid index"),
-                None => panic!("Out of string bounds"),
-            }
-        }
-
-        todo!()
-
-
-
-
-        /* 
+    pub fn lookup(&self, id: Key, mut index: usize, mut chunk: usize) -> Option<&Bucket> {
         if chunk == 31 && index == 7 {
-            return &self;
+            println!("{:?}",self.bucket);
+            return self.bucket.as_ref();
          } else if index == 8 {
              chunk += 1;
              index = 0;
@@ -280,23 +252,27 @@ impl Node {
              Some('0') =>{
                  match &self.left {
                      None => {
-                         self 
+                         println!("{:?}",self.bucket);
+                         self.bucket.as_ref() 
                         },
-                     Some(node) => node.lookup(id,index+1,chunk),
+                     Some(node) => {
+                         node.lookup(id,index+1,chunk)
+                        },
                  }
              },
              Some('1') => { 
                 match &self.right {
                     None => {
-                        self
+                        println!("{:?}",self.bucket);
+                        self.bucket.as_ref()
                     },
-                    Some(node) => node.lookup(id,index+1,chunk),
+                    Some(node) =>{
+                        node.lookup(id,index+1,chunk)
+                    },
                 }
              },
              Some(_) => panic!("Invalid index"),
              None => panic!("Out of string bounds"),
-         } */
-    }
-
-    
+         } 
+    }  
 }

@@ -4,7 +4,15 @@ use std::sync::Arc;
 use std::{io, net::SocketAddr};
 use tokio::sync::Mutex;
 
-use super::kad::KadNode;
+
+use self::kademlia::Kcontact;
+
+use super::node::Contact;
+use super::{
+    kad::KadNode,
+    key::Key
+};
+
 use kademlia::{ 
     kademlia_server::{Kademlia,KademliaServer},
     kademlia_client::KademliaClient, 
@@ -17,7 +25,7 @@ pub mod kademlia {
 
 #[derive(Debug, Default,Clone)]
 pub struct KademliaProtocol{
-    node: KadNode,
+    pub node: KadNode,
 }
 
 impl KademliaProtocol {
@@ -29,6 +37,19 @@ impl KademliaProtocol {
 
     pub fn create_server(self) -> KademliaServer<KademliaProtocol> {
         KademliaServer::<KademliaProtocol>::new(self)
+    }
+
+    pub fn lookup(&self, key: Key) -> Vec<Kcontact> {
+        let k_closest_boxed = self.node.lookup(key);
+        let mut k_closest = Vec::with_capacity(k_closest_boxed.len());
+
+        for k in k_closest_boxed {
+            
+            let kc = k.as_kcontact();
+            k_closest.push(kc);
+        }
+
+        k_closest
     }
 }
 
@@ -68,14 +89,15 @@ impl Kademlia for KademliaProtocol {
     }
 
     async fn find_node(&self, request: Request<FNodeReq>) -> Result<Response<FNodeRepl>,Status>{
-        let con = kademlia::Contact {
-            uid: vec![34,23],
-            ip: String::from("192.23.23.3"),
-            port: 3435,
-        };
+        let req = request.into_inner();
+        let key_bytes = req.node.unwrap().uid;
+        let lookup_key = Key::from_vec(key_bytes);
+        let k = self.lookup(lookup_key);
+        println!("reply: {:?}", k);
+
         let reply = FNodeRepl {
-            cookie: String::from("10"),
-            knode: vec![con],
+            cookie: req.cookie,
+            knode: k,
         };
 
         Ok(Response::new(reply))
