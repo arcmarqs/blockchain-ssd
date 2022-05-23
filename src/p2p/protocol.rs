@@ -1,4 +1,3 @@
-use rand::Rng;
 use tonic::{transport::Server, Request, Response, Status};
 use to_binary::BinaryString;
 use std::sync::Arc;
@@ -26,13 +25,13 @@ pub mod kademlia {
 
 #[derive(Debug, Default,Clone)]
 pub struct KademliaProtocol{
-    pub node: KadNode,
+    pub node: Arc<KadNode>,
 }
 
 impl KademliaProtocol {
-    pub fn new(ip: String, port: u16) -> KademliaProtocol {
+    pub fn new(ip: String,port: u16) -> KademliaProtocol {
         KademliaProtocol {
-            node : KadNode::new(ip,port),
+            node : Arc::new(KadNode::new(ip,port)),
         }
     }
 
@@ -52,36 +51,6 @@ impl KademliaProtocol {
 
         k_closest
     }
-
-    async fn send_ping(&self,addr:String) -> Result<(), Box<dyn std::error::Error>> {
-        let client = KademliaClient::connect(addr).await?;  
-        let mut rng = rand::thread_rng();
-        let cookie: usize = rng.gen();
-        let request = Request::new(
-            PingM {
-                cookie: cookie.to_string(),
-                id : self.node.uid.as_bytes().to_owned(),
-            }
-        );
-
-        Ok(())
-    }
-
-    async fn send_fnode(&self,addr:String) -> Result<(), Box<dyn std::error::Error>> {
-        let client = KademliaClient::connect(addr).await?;  
-        todo!();
-    }
-
-    async fn send_fvalue(&self,addr:String) -> Result<(), Box<dyn std::error::Error>> {
-        let client = KademliaClient::connect(addr).await?;  
-        todo!();
-    }
-
-    async fn send_store(&self,addr:String) -> Result<(), Box<dyn std::error::Error>> {
-        let client = KademliaClient::connect(addr).await?;
-        todo!();
-    }
-
 }
 
 #[tonic::async_trait]
@@ -97,7 +66,7 @@ impl Kademlia for KademliaProtocol {
             cookie: req.cookie,
             id: uid.to_owned(),
         };
-        
+        println!("Sending reply: {:?}", reply);
         Ok(Response::new(reply))
     }
 

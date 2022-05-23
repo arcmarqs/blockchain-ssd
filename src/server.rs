@@ -1,11 +1,13 @@
 use tonic::{transport::{Server, Channel}, Request, Response, Status};
 use to_binary::BinaryString;
-use std::{io, net::SocketAddr};
+use std::{io, net::SocketAddr, sync::Arc};
 mod p2p;
-use p2p::{kad,protocol, key};
-
-
-use kademlia::kademlia_server::{Kademlia,KademliaServer};
+use p2p::{kad::{self, KadNode},protocol, key};
+use kademlia::{
+    kademlia_server::{Kademlia,KademliaServer},
+    kademlia_client::KademliaClient, 
+    PingM,StoreReq,StoreRepl,FNodeReq,FNodeRepl,FValueReq,FValueRepl
+};
 
 pub mod kademlia {
     tonic::include_proto!("kadproto");
@@ -21,15 +23,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut buffer = String::new();
     io::stdin().read_line(&mut buffer)?;
-    let addr = SocketAddr::new(buffer[0..buffer.len() - 1].parse()?,50051);
-    let ip = addr.ip().to_string();
-    let port = addr.port();
-    let mut protocol = protocol::KademliaProtocol::new(ip,port);
-
-    for i in 0..50 {
+    let addr: SocketAddr = buffer[0..buffer.len() - 1].parse()?;
+    println!("{:?}",addr);
+    //let ip = buffer.split(':').collect();
+    let protocol = protocol::KademliaProtocol::new(addr.to_string(),0);
+    println!("{:?}",protocol.node);
+    /* for i in 0..50 {
         let k = kad::KadNode::new(i.to_string(),1616);
         protocol.node.insert(k.as_contact());
-    }
+    } */
     let svc = protocol.create_server();
     Server::builder()
         .add_service(svc)
