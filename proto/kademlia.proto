@@ -42,7 +42,7 @@ message FValueReq {
 message FValueRepl {
     string cookie = 1;
     kcontact node = 2;
-    optional string value = 3;
+    string value = 3;
 }
 
 message kcontact {

@@ -18,7 +18,7 @@ impl KadNode {
     pub fn new(ip: String, port: u16) -> KadNode {
         let key = Key::new(ip.clone() + &port.to_string());
         let origin = Contact::new(key,ip.clone(),port);
-        let mut r = Rtable::new();
+        let r = Rtable::new();
         KadNode {
             uid: key,
             ip: ip,
