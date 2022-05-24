@@ -29,9 +29,9 @@ pub struct KademliaProtocol{
 }
 
 impl KademliaProtocol {
-    pub fn new(ip: String,port: u16) -> KademliaProtocol {
+    pub fn new(node: Arc<KadNode>) -> KademliaProtocol {
         KademliaProtocol {
-            node : Arc::new(KadNode::new(ip,port)),
+            node
         }
     }
 
