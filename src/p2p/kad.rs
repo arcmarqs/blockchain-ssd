@@ -1,4 +1,5 @@
 use to_binary::BinaryString;
+use tokio::sync::RwLock;
 
 use super::{
     key::Key,
@@ -6,19 +7,19 @@ use super::{
     node::{Node, Contact},
 };
 
-#[derive(Debug,Clone,Default)]
+#[derive(Debug,Default)]
 pub struct KadNode {
     pub uid: Key,
     pub ip: String,
     pub port: u16,
-    rtable: Rtable,
+    pub rtable: RwLock<Rtable>,
 }
 
 impl KadNode {
     pub fn new(ip: String, port: u16) -> KadNode {
         let key = Key::new(ip.clone() + &port.to_string());
         let origin = Contact::new(key,ip.clone(),port);
-        let r = Rtable::new();
+        let r = RwLock::new(Rtable::new());
         KadNode {
             uid: key,
             ip: ip,
@@ -32,23 +33,23 @@ impl KadNode {
         let uid = Key::new(ip + &port.to_string());
     }
 
-    pub fn lookup(&self,id: Key) -> Vec<Box<Contact>> {
-        self.rtable.lookup(id)
+    pub async fn lookup(&self,id: Key) -> Vec<Box<Contact>> {
+        self.rtable.read().await.lookup(id)
     }
 
     pub fn as_contact(&self) -> Contact {
         Contact {
-            uid: self.uid,
+            uid: self.uid.clone(),
             ip: self.ip.clone(),
-            port: self.port,
+            port: self.port.clone(),
         }
     }
 
-    pub fn insert(&mut self,contact:Contact) {
-        self.rtable.insert(contact,self.uid)
+    pub async fn insert(&mut self,contact:Contact) {
+        self.rtable.write().await.insert(contact,self.uid)
     }
 
-    pub fn print_rtable(&self) {
-        println!("{:?}",self.rtable)
+    pub async fn print_rtable(&self) {
+        println!("{:?}",self.rtable.try_read().unwrap().head);
     }
 }

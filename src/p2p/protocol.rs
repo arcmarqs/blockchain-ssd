@@ -1,5 +1,7 @@
+use rand::Rng;
 use tonic::{transport::Server, Request, Response, Status};
 use to_binary::BinaryString;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::{io, net::SocketAddr};
 use tokio::sync::Mutex;
@@ -39,8 +41,8 @@ impl KademliaProtocol {
         KademliaServer::<KademliaProtocol>::new(self)
     }
 
-    pub fn lookup(&self, key: Key) -> Vec<Kcontact> {
-        let k_closest_boxed = self.node.lookup(key);
+    async fn lookup(&self, key: Key) -> Vec<Kcontact> {
+        let k_closest_boxed = self.node.lookup(key).await;
         let mut k_closest = Vec::with_capacity(k_closest_boxed.len());
 
         for k in k_closest_boxed {
@@ -50,7 +52,7 @@ impl KademliaProtocol {
         }
 
         k_closest
-    }
+    }   
 }
 
 #[tonic::async_trait]
@@ -92,7 +94,7 @@ impl Kademlia for KademliaProtocol {
         let req = request.into_inner();
         let key_bytes = req.node.unwrap().uid;
         let lookup_key = Key::from_vec(key_bytes);
-        let k = self.lookup(lookup_key);
+        let k = self.lookup(lookup_key).await;
         println!("reply: {:?}", k);
 
         let reply = FNodeRepl {

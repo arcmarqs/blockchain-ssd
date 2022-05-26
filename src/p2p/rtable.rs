@@ -6,7 +6,7 @@ use super::{node::{Node,Bucket, Contact},
 };
 use to_binary::BinaryString;
 
-#[derive(Debug,Default,Clone)]
+#[derive(Debug,Default)]
 pub struct Rtable{pub head: Node}
 
 impl Rtable {

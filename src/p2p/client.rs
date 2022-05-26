@@ -1,3 +1,4 @@
+
 use tonic::{transport::{Server, Channel}, Request, Response, Status};
 use to_binary::BinaryString;
 use std::{io, net::SocketAddr, sync::Arc, collections::HashSet};
@@ -14,10 +15,20 @@ pub mod kademlia {
 }
 
 #[derive(Debug,Default,Clone)]
-pub struct Client {}
+pub struct Client {
+    node: Arc<KadNode>,
+}
+
 
 impl Client {
-    pub async fn send_ping(mynode: Arc<KadNode>,contact: Contact) {
+    pub fn new(node: Arc<KadNode>) -> Client {
+        Client { 
+            node
+        }
+    }
+
+    pub async fn send_ping(self,contact: Contact) {
+        self.node.print_rtable();
         let addr = format_address(contact.ip,contact.port);
         let mut client = KademliaClient::connect(addr).await.unwrap();  
         let mut rng = rand::thread_rng();
@@ -25,11 +36,9 @@ impl Client {
         let request = Request::new(
             PingM {
                 cookie: cookie.to_string(),
-                id : mynode.uid.as_bytes().to_owned(),
+                id : self.node.uid.as_bytes().to_owned(),
             }
         );
-
-        println!("here");
 
         let response = client.ping(request).await.unwrap();
         println!("{:?}", response.into_inner());
@@ -55,8 +64,10 @@ impl Client {
         let client = KademliaClient::connect(addr).await?;
         todo!();
     }
+  
 
 }
+
 
 fn format_address(ip: String, port: u16) -> String {
     ("http://".to_owned() + &ip + ":" + &port.to_string()).to_owned()
