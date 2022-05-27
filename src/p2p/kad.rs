@@ -1,5 +1,5 @@
+use parking_lot::RwLock;
 use to_binary::BinaryString;
-use tokio::sync::RwLock;
 
 use super::{
     key::Key,
@@ -33,8 +33,8 @@ impl KadNode {
         let uid = Key::new(ip + &port.to_string());
     }
 
-    pub async fn lookup(&self,id: Key) -> Vec<Box<Contact>> {
-        self.rtable.read().await.lookup(id)
+    pub fn lookup(&self,id: Key) -> Vec<Box<Contact>> {
+        self.rtable.read().lookup(id)
     }
 
     pub fn as_contact(&self) -> Contact {
@@ -45,11 +45,11 @@ impl KadNode {
         }
     }
 
-    pub async fn insert(&mut self,contact:Contact) {
-        self.rtable.write().await.insert(contact,self.uid)
+    pub fn insert(&mut self,contact:Contact) {
+        self.rtable.write().insert(contact, self.uid)
     }
 
-    pub async fn print_rtable(&self) {
+    pub fn print_rtable(&self) {
         println!("{:?}",self.rtable.try_read().unwrap().head);
     }
 }

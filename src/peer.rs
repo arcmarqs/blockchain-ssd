@@ -5,7 +5,6 @@ use p2p::server;
 use p2p::node::Contact;
 use p2p::client::Client;
 use p2p::kad::KadNode;
-use tokio::sync::Mutex;
 use tokio::time;
 use tokio::{task, signal, time::Duration};
 use std::env;
@@ -21,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let svnode = node.clone();
     let cl = Client::new(node.clone());
     let plsinsert = KadNode::new("192.0.0.3".to_owned(),60064);
-    node.rtable.write().await.insert(plsinsert.as_contact(),node.uid);
+    node.rtable.write().insert(plsinsert.as_contact(),node.uid);
     task::spawn(async move {
         server::server(addr,svnode).await
     });

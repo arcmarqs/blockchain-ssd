@@ -4,9 +4,6 @@ use to_binary::BinaryString;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{io, net::SocketAddr};
-use tokio::sync::Mutex;
-
-
 use self::kademlia::Kcontact;
 
 use super::node::Contact;
@@ -41,8 +38,8 @@ impl KademliaProtocol {
         KademliaServer::<KademliaProtocol>::new(self)
     }
 
-    async fn lookup(&self, key: Key) -> Vec<Kcontact> {
-        let k_closest_boxed = self.node.lookup(key).await;
+    fn lookup(&self, key: Key) -> Vec<Kcontact> {
+        let k_closest_boxed = self.node.lookup(key);
         let mut k_closest = Vec::with_capacity(k_closest_boxed.len());
 
         for k in k_closest_boxed {
@@ -94,7 +91,7 @@ impl Kademlia for KademliaProtocol {
         let req = request.into_inner();
         let key_bytes = req.uid;
         let lookup_key = Key::from_vec(key_bytes);
-        let k = self.lookup(lookup_key).await;
+        let k = self.lookup(lookup_key);
         println!("reply: {:?}", k);
 
         let reply = FNodeRepl {

@@ -24,7 +24,7 @@ pub async fn server(addr: SocketAddr, node: Arc<KadNode>) {
     //let ip = buffer.split(':').collect();
     let protocol = protocol::KademliaProtocol::new(node);
     println!("node: {:?}",protocol.node);
-    protocol.node.print_rtable().await;
+    protocol.node.print_rtable();
 
     /* for i in 0..50 {
         let k = kad::KadNode::new(i.to_string(),1616);
