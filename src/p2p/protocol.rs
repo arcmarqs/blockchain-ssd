@@ -92,7 +92,7 @@ impl Kademlia for KademliaProtocol {
 
     async fn find_node(&self, request: Request<FNodeReq>) -> Result<Response<FNodeRepl>,Status>{
         let req = request.into_inner();
-        let key_bytes = req.node.unwrap().uid;
+        let key_bytes = req.uid;
         let lookup_key = Key::from_vec(key_bytes);
         let k = self.lookup(lookup_key).await;
         println!("reply: {:?}", k);

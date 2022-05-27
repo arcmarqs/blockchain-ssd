@@ -10,6 +10,7 @@ name = "network"
 path = "src/peer.rs"
 
 [dependencies]
+log = "0.4"
 primitive-types = "0.11.1"
 to-binary = "0.4"
 hex = "0.4.3"

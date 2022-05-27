@@ -1,10 +1,8 @@
 use std::collections::VecDeque;
 use to_binary::BinaryString;
-use super::{key::{Key}, protocol::kademlia::Kcontact};
+use super::{key::{Key}, protocol::kademlia::Kcontact, K_MAX_ENTRIES};
 
-const K_MAX_ENTRIES: usize = 20;
-
-#[derive(Debug,Default,Clone,PartialEq,Eq,Ord,PartialOrd)]
+#[derive(Debug,Default,Clone,Hash,PartialEq,Eq,Ord,PartialOrd)]
 pub struct Contact {
     pub(crate) uid: Key,
     pub(crate) ip: String,
