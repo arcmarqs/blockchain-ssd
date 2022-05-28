@@ -115,7 +115,7 @@ impl Bucket {
     }
 
     pub fn is_full(&self) -> bool {
-        self.0.len() == 20
+        self.0.len() == K_MAX_ENTRIES
     }
 
     pub fn len(&self) -> usize {

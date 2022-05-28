@@ -63,6 +63,7 @@ impl Client {
 
     pub async fn send_fnode(self, key: Key) -> Result<(), Box<dyn std::error::Error>> {
         let my_closest = self.node.lookup(key);
+        println!("close: {:?}", my_closest);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
         let k_closest= nodes_to_visit.clone();
         let mut visited_nodes = HashSet::<Key>::new();
@@ -72,14 +73,13 @@ impl Client {
         let visited = Arc::new(RwLock::new(visited_nodes));
         let info = Arc::new(FNodeManager::new(a_kclosest,a_nodestv,visited));
         let mut handles = Vec::with_capacity(PARALLEL_LOOKUPS);
-        
         for _i in 0..PARALLEL_LOOKUPS {
-            handles.push(a_lookup(self.node.uid,key.clone(), info.clone()));
+            handles.push(a_lookup(self.node.uid,key,info.clone()));
         }
         
         join_all(handles.into_iter().map(tokio::spawn)).await;
         println!("here");
-        println!("closest {:?}", info.k_closest.lock());
+        //println!("closest {:?}", info);
         Ok(())
     }
 
@@ -98,8 +98,10 @@ impl Client {
 
 async fn a_lookup(my_key: Key, key: Key, info: Arc<FNodeManager>) {
     let mut local_visit = Vec::new();
+    println!("inside thread");
      loop {
-
+        println!("inside thread with {:?}",info);
+        println!("");
          if local_visit.is_empty(){
              if let Some(local_visit_node) = info.pop_ntv(){
             println!("{:?}", local_visit_node);
