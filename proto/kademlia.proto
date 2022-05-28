@@ -47,8 +47,8 @@ message FValueReq {
 message FValueRepl {
     string cookie = 1;
     bytes my_id = 2;
-    kcontact node = 3;
-    string value = 4;
+    repeated kcontact node = 3;
+    optional string value = 4;
 }
 
 message kcontact {

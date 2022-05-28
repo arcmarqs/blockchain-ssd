@@ -12,7 +12,6 @@ use super::{
     key::Key, K_MAX_ENTRIES,
     util::*,
 };
-use rand::Rng;
 use kademlia::kademlia_client::KademliaClient;
 use kademlia::{PingM,StoreReq,StoreRepl,FNodeReq,FNodeRepl,FValueReq,FValueRepl,Kcontact};
 const PARALLEL_LOOKUPS: usize = 3;
@@ -61,7 +60,7 @@ impl Client {
         }
     }
 
-    pub async fn send_fnode(self, key: Key) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_fnode(self, key: Key) {
         let my_closest = self.node.lookup(key);
         println!("close: {:?}", my_closest);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
@@ -78,30 +77,42 @@ impl Client {
         }
         
         join_all(handles.into_iter().map(tokio::spawn)).await;
-        println!("here");
         //println!("closest {:?}", info);
+
+    }
+
+    async fn send_fvalue(self, key: Key, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
+        let addr = format_address(contact.ip,contact.port);
+        let mut client = KademliaClient::connect(addr).await.unwrap();  
+        let request = FValueReq {
+                cookie: gen_cookie(),
+                my_id : self.node.uid.as_bytes().to_owned(),
+                uid: key.as_bytes().to_owned(),
+            };
+
+        todo!()
+    }
+
+    async fn send_store(self,key:Key, value:String, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
+        let addr = format_address(contact.ip,contact.port);
+        let mut client = KademliaClient::connect(addr).await?;
+        let request = StoreReq {
+                cookie: gen_cookie(),
+                my_id : self.node.uid.as_bytes().to_owned(),
+                key: key.as_bytes().to_owned(),
+                value: value,
+            };
+        let rep =  client.store(request).await;
+        
+
         Ok(())
     }
 
-    async fn send_fvalue(mynode: Arc<KadNode>,contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
-        let addr = format_address(contact.ip,contact.port);
-        let client = KademliaClient::connect(addr).await?;  
-        todo!();
-    }
-
-    async fn send_store(mynode: Arc<KadNode>,contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
-        let addr = format_address(contact.ip,contact.port);
-        let client = KademliaClient::connect(addr).await?;
-        todo!();
-    }
 }
 
 async fn a_lookup(my_key: Key, key: Key, info: Arc<FNodeManager>) {
     let mut local_visit = Vec::new();
-    println!("inside thread");
      loop {
-        println!("inside thread with {:?}",info);
-        println!("");
          if local_visit.is_empty(){
              if let Some(local_visit_node) = info.pop_ntv(){
             println!("{:?}", local_visit_node);
@@ -152,7 +163,7 @@ async fn a_lookup(my_key: Key, key: Key, info: Arc<FNodeManager>) {
              }
              Err(err) =>{
                  warn!("address {:?} unreachable, removing from route table: {}",addr,err);
-                 //node still in visited so it's not contacted again.
+                 //node still in visited so it's not contacted again.v 
                  info.insert_vn(node.uid);
                  //info.insert_visited(node.uid);
                  // need to implement function to remove contact from route table.

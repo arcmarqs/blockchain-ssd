@@ -50,6 +50,11 @@ impl KademliaProtocol {
 
         k_closest
     }
+
+    fn insert_update(&self,id: Vec<u8>, remote_addr: SocketAddr) {
+        let con = Contact::new(Key::from_vec(id), remote_addr.ip().to_string(),remote_addr.port());
+        self.node.insert(con);
+    }
 }
 
 #[tonic::async_trait]
@@ -57,9 +62,10 @@ impl Kademlia for KademliaProtocol {
    async fn ping(&self, request: Request<PingM>) -> Result<Response<PingM>,Status>{
         if let Some(sender_addr) = request.remote_addr() {
             println!("{:?}",sender_addr);
-        }
-
+        };
+        let remote_addr = request.remote_addr().unwrap();
         let req = request.into_inner();
+        self.insert_update(req.id,remote_addr);
         let uid = self.node.uid.as_bytes().clone();
         let reply = PingM {
             cookie: req.cookie,
@@ -70,8 +76,14 @@ impl Kademlia for KademliaProtocol {
     }
 
     async fn store(&self, request: Request<StoreReq>) -> Result<Response<StoreRepl>,Status>{
+        let remote_addr = request.remote_addr().unwrap();
+        let req = request.into_inner();
+        let key_bytes = req.key;
+        let key = Key::from_vec(key_bytes);
+        self.insert_update(req.my_id,remote_addr);
+        self.node.store_value(key, req.value);
         let reply = StoreRepl {
-            cookie: String::from("10"),
+            cookie: req.cookie,
             my_id: self.node.uid.as_bytes().to_owned(),
         };
 
@@ -79,11 +91,23 @@ impl Kademlia for KademliaProtocol {
     }
 
     async fn find_value(&self, request: Request<FValueReq>) -> Result<Response<FValueRepl>,Status>{
+        let remote_addr = request.remote_addr().unwrap();
+        let req = request.into_inner();
+        let key_bytes = req.uid;
+        let lookup_key = Key::from_vec(key_bytes);
+        self.insert_update(req.my_id,remote_addr);
+        let mut value: Option<String> = None;
+        let mut k_closest = Vec::new();
+        match self.node.retrieve(lookup_key) {
+            Some(val) => value = Some(val),
+            None => k_closest = self.lookup(lookup_key),
+        };
+
         let reply = FValueRepl {
-            cookie: String::from("10"),
+            cookie: req.cookie,
             my_id: self.node.uid.as_bytes().to_owned(),
-            value: "placeholder".to_owned(),
-            node: None,
+            value: value,
+            node: k_closest,
         };
 
         Ok(Response::new(reply))
@@ -95,8 +119,7 @@ impl Kademlia for KademliaProtocol {
         let key_bytes = req.uid;
         let lookup_key = Key::from_vec(key_bytes);
         let k = self.lookup(lookup_key);
-        let con = Contact::new(Key::from_vec(req.my_id), remote_addr.ip().to_string(),remote_addr.port());
-        insert(self.node.clone(),con);
+        self.insert_update(req.my_id,remote_addr);
         let reply = FNodeRepl {
             cookie: req.cookie,
             my_id: self.node.uid.as_bytes().to_owned(),
@@ -105,8 +128,4 @@ impl Kademlia for KademliaProtocol {
 
         Ok(Response::new(reply))
     }
-}
-
-fn insert(mynode: Arc<KadNode>,contact: Contact) {
-    mynode.rtable.write().insert(contact,mynode.uid);
 }

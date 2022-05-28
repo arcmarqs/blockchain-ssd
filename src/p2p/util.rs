@@ -31,14 +31,10 @@ pub fn gen_cookie() -> String {
 pub async fn send_ping(my_key: Key,contact: Contact) -> bool {
     let addr = format_address(contact.ip,contact.port);
     let mut client = KademliaClient::connect(addr).await.unwrap();  
-    let mut rng = rand::thread_rng();
-    let cookie: usize = rng.gen();
-    let request = Request::new(
-        PingM {
-            cookie: cookie.to_string(),
+    let request = PingM {
+            cookie: gen_cookie(),
             id : my_key.as_bytes().to_owned(),
-        }
-    );
+        };
 
     match client.ping(request).await {
         Ok(_) => true,

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use parking_lot::RwLock;
 use to_binary::BinaryString;
 use chrono::prelude::*;
@@ -15,25 +17,19 @@ pub struct KadNode {
     pub port: u16,
     pub join_date: DateTime<Utc>,
     pub rtable: RwLock<Rtable>,
+    pub data_store: RwLock<HashMap<Key,String>>,
 }
 
 impl KadNode {
     pub fn new(ip: String, port: u16) -> KadNode {
-        let key = Key::new(ip.clone() + &port.to_string());
-        let origin = Contact::new(key,ip.clone(),port);
-        let r = RwLock::new(Rtable::new());
-        KadNode {
-            uid: key,
+       KadNode {
+            uid: Key::new(ip.clone() + &port.to_string()),
             ip: ip,
             port: port,
-            rtable: r,
+            rtable: RwLock::new(Rtable::new()),
             join_date: Utc::now(),
+            data_store: RwLock::new(HashMap::new()),
         }
-    }
-    pub fn bootstrap() {
-        let ip = String::from("0.0.0.0");
-        let port:u16 = 5050;
-        let uid = Key::new(ip + &port.to_string());
     }
 
     pub fn lookup(&self,id: Key) -> Vec<Box<Contact>> {
@@ -49,11 +45,23 @@ impl KadNode {
         }
     }
 
-    pub fn insert(&mut self,contact:Contact) {
+    pub fn insert(&self,contact:Contact) {
         self.rtable.write().insert(contact, self.uid)
     }
 
     pub fn print_rtable(&self) {
         println!("{:?}",self.rtable.try_read().unwrap().head);
+    }
+
+    pub fn store_value(&self, key: Key, value: String) -> Option<String> {
+        self.data_store.write().insert(key, value)
+    }
+
+    pub fn retrieve(&self, key: Key) -> Option<String> {
+        if let Some(value) = self.data_store.read().get(&key) {
+            Some(value.clone())
+        } else {
+            None
+        }
     }
 }

@@ -11,7 +11,6 @@ use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
     let args: Vec<String> = env::args().collect();
     let ip: Vec<&str>= args[1].split(":").collect();
     let port = ip[1].to_string().parse::<u16>().unwrap();
