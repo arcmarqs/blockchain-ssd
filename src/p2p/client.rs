@@ -28,16 +28,15 @@ struct FNodeManager {
 }
 
 impl FNodeManager {
-    pub fn new(k_closest: Vec<Contact>,nodes_to_visit: Vec<Contact>, visited_nodes: HashSet<Key>) -> FNodeManager {
-        FNodeManager {
-            k_closest: Arc::new(Mutex::new(k_closest)),
-            nodes_to_visit: Arc::new(Mutex::new(nodes_to_visit)),
-            visited_nodes: Arc::new(RwLock::new(visited_nodes)),
+    pub fn new(k_closest: Arc<Mutex<Vec<Contact>>>,nodes_to_visit: Arc<Mutex<Vec<Contact>>>, visited_nodes: Arc<RwLock<HashSet<Key>>>) -> Self {
+        Self {
+            k_closest,
+            nodes_to_visit,
+            visited_nodes,
         }
     }
 
     pub fn pop_ntv(&self) -> Option<Contact> {
-        println!("lock released");
         self.nodes_to_visit.lock().pop()
     }
 
@@ -63,22 +62,23 @@ impl Client {
     }
 
     pub async fn send_fnode(self, key: Key) -> Result<(), Box<dyn std::error::Error>> {
-        println!("here");
         let my_closest = self.node.lookup(key);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
         let k_closest= nodes_to_visit.clone();
         let mut visited_nodes = HashSet::<Key>::new();
         visited_nodes.insert(self.node.uid);
-        let info = Arc::new(FNodeManager::new(k_closest,nodes_to_visit,visited_nodes));
+        let a_kclosest = Arc::new(Mutex::new(k_closest));
+        let a_nodestv = Arc::new(Mutex::new(nodes_to_visit));
+        let visited = Arc::new(RwLock::new(visited_nodes));
+        let info = Arc::new(FNodeManager::new(a_kclosest,a_nodestv,visited));
         let mut handles = Vec::with_capacity(PARALLEL_LOOKUPS);
         
         for _i in 0..PARALLEL_LOOKUPS {
-            let lookup_info = info.clone();
-            handles.push(a_lookup(self.node.uid,key.clone(), lookup_info));
+            handles.push(a_lookup(self.node.uid,key.clone(), info.clone()));
         }
         
         join_all(handles.into_iter().map(tokio::spawn)).await;
-
+        println!("here");
         println!("closest {:?}", info.k_closest.lock());
         Ok(())
     }
@@ -97,7 +97,6 @@ impl Client {
 }
 
 async fn a_lookup(my_key: Key, key: Key, info: Arc<FNodeManager>) {
-    println!("inside thread");
     let mut local_visit = Vec::new();
      loop {
 
@@ -106,7 +105,7 @@ async fn a_lookup(my_key: Key, key: Key, info: Arc<FNodeManager>) {
             println!("{:?}", local_visit_node);
              local_visit.push(local_visit_node);
              } else {
-                 return;
+                return;
              }
          }
 
