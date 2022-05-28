@@ -26,7 +26,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     
 
-    cl.send_fnode(node.uid).await;
+    let res = cl.send_fnode(node.uid).await;
+    println!("{:?}",res);
 
    //time::sleep(Duration::from_secs(5)).await;
  

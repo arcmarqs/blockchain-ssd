@@ -27,11 +27,11 @@ struct FNodeManager {
 }
 
 impl FNodeManager {
-    pub fn new(k_closest: Arc<Mutex<Vec<Contact>>>,nodes_to_visit: Arc<Mutex<Vec<Contact>>>, visited_nodes: Arc<RwLock<HashSet<Key>>>) -> Self {
+    pub fn new(k_closest: Vec<Contact>, nodes_to_visit: Vec<Contact>, visited_nodes: HashSet<Key>) -> Self {
         Self {
-            k_closest,
-            nodes_to_visit,
-            visited_nodes,
+            k_closest : Arc::new(Mutex::new(k_closest)),
+            nodes_to_visit : Arc::new(Mutex::new(nodes_to_visit)),
+            visited_nodes : Arc::new(RwLock::new(visited_nodes)),
         }
     }
 
@@ -45,6 +45,10 @@ impl FNodeManager {
 
     pub fn contains_vn(&self,id: &Key) -> bool {
         self.visited_nodes.read().contains(id)
+    }
+
+    pub fn get_k_closest(&self) -> Vec<Contact> {
+       (*self.k_closest.lock()).clone()
     }
 }
 #[derive(Debug,Clone)]
@@ -60,17 +64,14 @@ impl Client {
         }
     }
 
-    pub async fn send_fnode(self, key: Key) {
+    pub async fn send_fnode(&self, key: Key) -> Vec<Contact> {
         let my_closest = self.node.lookup(key);
         println!("close: {:?}", my_closest);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
         let k_closest= nodes_to_visit.clone();
         let mut visited_nodes = HashSet::<Key>::new();
         visited_nodes.insert(self.node.uid);
-        let a_kclosest = Arc::new(Mutex::new(k_closest));
-        let a_nodestv = Arc::new(Mutex::new(nodes_to_visit));
-        let visited = Arc::new(RwLock::new(visited_nodes));
-        let info = Arc::new(FNodeManager::new(a_kclosest,a_nodestv,visited));
+        let info = Arc::new(FNodeManager::new(k_closest,nodes_to_visit,visited_nodes));
         let mut handles = Vec::with_capacity(PARALLEL_LOOKUPS);
         for _i in 0..PARALLEL_LOOKUPS {
             handles.push(a_lookup(self.node.uid,key,info.clone()));
@@ -78,22 +79,42 @@ impl Client {
         
         join_all(handles.into_iter().map(tokio::spawn)).await;
         //println!("closest {:?}", info);
-
+        info.get_k_closest()
     }
 
-    async fn send_fvalue(self, key: Key, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
-        let addr = format_address(contact.ip,contact.port);
-        let mut client = KademliaClient::connect(addr).await.unwrap();  
-        let request = FValueReq {
+    async fn send_fvalue(&self, key: Key) -> Option<String> {
+        if let Some(maybe_value) = self.node.retrieve(key) {
+            return Some(maybe_value);
+        }
+        
+        let k_closest = self.send_fnode(key).await;
+        for contact in k_closest {
+            let addr = format_address(contact.ip,contact.port);
+            let mut client = KademliaClient::connect(addr).await.unwrap();  
+
+            let request = FValueReq {
                 cookie: gen_cookie(),
                 my_id : self.node.uid.as_bytes().to_owned(),
                 uid: key.as_bytes().to_owned(),
             };
-
-        todo!()
+            match client.find_value(request).await {
+                Ok(res) => {
+                    let response = res.into_inner();
+                    match response.value {
+                        Some(value) => return Some(value),
+                        None => return None,
+                    }
+                },
+                Err(_) => {
+                    warn!("failed to contact node");
+                    return None;
+                },
+            };
+        }
+        None
     }
 
-    async fn send_store(self,key:Key, value:String, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
+    async fn send_store(&self,key:Key, value:String, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
         let addr = format_address(contact.ip,contact.port);
         let mut client = KademliaClient::connect(addr).await?;
         let request = StoreReq {
