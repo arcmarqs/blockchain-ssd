@@ -8,8 +8,9 @@ use std::{io, net::SocketAddr, sync::{Arc}, collections::HashSet, cmp::Ordering}
 use futures::future::join_all;
 use super::{
     kad::KadNode,
-    node::Contact,
+    node::{Contact,LastSeen},
     key::Key, K_MAX_ENTRIES,
+    util::*,
 };
 use rand::Rng;
 use kademlia::kademlia_client::KademliaClient;
@@ -36,6 +37,7 @@ impl FNodeManager {
     }
 
     pub fn pop_ntv(&self) -> Option<Contact> {
+        println!("lock released");
         self.nodes_to_visit.lock().pop()
     }
 
@@ -46,10 +48,8 @@ impl FNodeManager {
     pub fn contains_vn(&self,id: &Key) -> bool {
         self.visited_nodes.read().contains(id)
     }
-
-
 }
-#[derive(Debug,Default,Clone)]
+#[derive(Debug,Clone)]
 pub struct Client {
     node: Arc<KadNode>,
 }
@@ -62,24 +62,8 @@ impl Client {
         }
     }
 
-    pub async fn send_ping(self,contact: Contact) {
-        self.node.print_rtable();
-        let addr = format_address(contact.ip,contact.port);
-        let mut client = KademliaClient::connect(addr).await.unwrap();  
-        let mut rng = rand::thread_rng();
-        let cookie: usize = rng.gen();
-        let request = Request::new(
-            PingM {
-                cookie: cookie.to_string(),
-                id : self.node.uid.as_bytes().to_owned(),
-            }
-        );
-
-        let response = client.ping(request).await.unwrap();
-        println!("{:?}", response.into_inner());
-    }
-
-    async fn send_fnode (self, key: Key) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn send_fnode(self, key: Key) -> Result<(), Box<dyn std::error::Error>> {
+        println!("here");
         let my_closest = self.node.lookup(key);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
         let k_closest= nodes_to_visit.clone();
@@ -88,13 +72,14 @@ impl Client {
         let info = Arc::new(FNodeManager::new(k_closest,nodes_to_visit,visited_nodes));
         let mut handles = Vec::with_capacity(PARALLEL_LOOKUPS);
         
-        for i in 0..PARALLEL_LOOKUPS {
+        for _i in 0..PARALLEL_LOOKUPS {
             let lookup_info = info.clone();
-            handles.push(a_lookup(key.clone(), lookup_info));
+            handles.push(a_lookup(self.node.uid,key.clone(), lookup_info));
         }
         
-        join_all(handles.into_iter().map(tokio::spawn));
+        join_all(handles.into_iter().map(tokio::spawn)).await;
 
+        println!("closest {:?}", info.k_closest.lock());
         Ok(())
     }
 
@@ -111,12 +96,14 @@ impl Client {
     }
 }
 
-async fn a_lookup(key: Key, info: Arc<FNodeManager>) {
+async fn a_lookup(my_key: Key, key: Key, info: Arc<FNodeManager>) {
+    println!("inside thread");
     let mut local_visit = Vec::new();
      loop {
 
          if local_visit.is_empty(){
              if let Some(local_visit_node) = info.pop_ntv(){
+            println!("{:?}", local_visit_node);
              local_visit.push(local_visit_node);
              } else {
                  return;
@@ -134,6 +121,7 @@ async fn a_lookup(key: Key, info: Arc<FNodeManager>) {
              Ok(mut remote) => {
                  let request = FNodeReq {
                      cookie: gen_cookie(),
+                     my_id: my_key.as_bytes().to_owned(),
                      uid: key.as_bytes().to_owned(),
                  };
 
@@ -171,36 +159,6 @@ async fn a_lookup(key: Key, info: Arc<FNodeManager>) {
          }
      }   
  }
-
-fn format_address(ip: String, port: u16) -> String {
-    ("http://".to_owned() + &ip + ":" + &port.to_string()).to_owned()
-}
-
-fn format_kcontact(contact: Contact) -> Kcontact {
-    Kcontact {
-        uid : contact.uid.as_bytes().to_owned(),
-        ip: contact.ip.clone(),
-        port: contact.port.clone() as i32,
-    }
-}
-
-fn contact_list(kcontact_list: Vec<Kcontact>) -> Vec<Contact> {
-    let converter = |k: &Kcontact| {
-        Contact {
-            uid: Key::from_vec(k.uid.clone()),
-            ip: k.ip.clone(),
-            port: k.port as u16,
-        }
-    };
-
-    kcontact_list.iter().map(|a| converter(a) ).collect()
-}
-
-fn gen_cookie() -> String {
-    let mut rng = rand::thread_rng();
-    let cookie: usize = rng.gen();
-    cookie.to_string()
-}
 
 // Inserts all contacts that are closest to the key relative to the ones already in the bucket and pushes them into the visiting list, if none are closer, returns false
 fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut closest_to_contact: Vec<Contact>,key: Key) -> (Vec<Contact>,bool) {
@@ -241,4 +199,17 @@ fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut
     local_visit.truncate(K_MAX_ENTRIES);
     let success = !prev_len == closest_to_contact.len();
     (local_visit,success)
+}
+
+pub fn contact_list(kcontact_list: Vec<Kcontact>) -> Vec<Contact> {
+    let converter = |k: &Kcontact| {
+        Contact {
+            uid: Key::from_vec(k.uid.clone()),
+            ip: k.ip.clone(),
+            port: k.port as u16,
+            last_seen: LastSeen::Never,
+        }
+    };
+
+    kcontact_list.iter().map(|a| converter(a) ).collect()
 }

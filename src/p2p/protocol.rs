@@ -22,7 +22,7 @@ pub mod kademlia {
     tonic::include_proto!("kadproto");
 }
 
-#[derive(Debug, Default,Clone)]
+#[derive(Debug,Clone)]
 pub struct KademliaProtocol{
     pub node: Arc<KadNode>,
 }
@@ -49,7 +49,7 @@ impl KademliaProtocol {
         }
 
         k_closest
-    }   
+    }
 }
 
 #[tonic::async_trait]
@@ -72,6 +72,7 @@ impl Kademlia for KademliaProtocol {
     async fn store(&self, request: Request<StoreReq>) -> Result<Response<StoreRepl>,Status>{
         let reply = StoreRepl {
             cookie: String::from("10"),
+            my_id: self.node.uid.as_bytes().to_owned(),
         };
 
         Ok(Response::new(reply))
@@ -80,6 +81,7 @@ impl Kademlia for KademliaProtocol {
     async fn find_value(&self, request: Request<FValueReq>) -> Result<Response<FValueRepl>,Status>{
         let reply = FValueRepl {
             cookie: String::from("10"),
+            my_id: self.node.uid.as_bytes().to_owned(),
             value: "placeholder".to_owned(),
             node: None,
         };
@@ -88,17 +90,23 @@ impl Kademlia for KademliaProtocol {
     }
 
     async fn find_node(&self, request: Request<FNodeReq>) -> Result<Response<FNodeRepl>,Status>{
+        let remote_addr = request.remote_addr().unwrap();
         let req = request.into_inner();
         let key_bytes = req.uid;
         let lookup_key = Key::from_vec(key_bytes);
         let k = self.lookup(lookup_key);
-        println!("reply: {:?}", k);
-
+        let con = Contact::new(Key::from_vec(req.my_id), remote_addr.ip().to_string(),remote_addr.port());
+        insert(self.node.clone(),con);
         let reply = FNodeRepl {
             cookie: req.cookie,
+            my_id: self.node.uid.as_bytes().to_owned(),
             knode: k,
         };
 
         Ok(Response::new(reply))
     }
+}
+
+fn insert(mynode: Arc<KadNode>,contact: Contact) {
+    mynode.rtable.write().insert(contact,mynode.uid);
 }

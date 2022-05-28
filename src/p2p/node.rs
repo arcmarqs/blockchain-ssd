@@ -1,20 +1,35 @@
 use std::collections::VecDeque;
 use to_binary::BinaryString;
-use super::{key::{Key}, protocol::kademlia::Kcontact, K_MAX_ENTRIES};
+use tonic::Request;
+use super::{key::{Key}, protocol::kademlia::Kcontact, K_MAX_ENTRIES,util::*};
+use chrono::prelude::*;
+use log::{info, trace, warn};
+use futures::executor;
+pub mod kademlia {
+    tonic::include_proto!("kadproto");
+}
 
-#[derive(Debug,Default,Clone,Hash,PartialEq,Eq,Ord,PartialOrd)]
+#[derive(Debug,Clone,Hash,PartialEq,Eq,Ord,PartialOrd)]
+pub enum LastSeen {
+    Never,
+    Seen(DateTime<Utc>),
+}
+
+#[derive(Debug,Clone,Hash,PartialEq,Eq,Ord,PartialOrd)]
 pub struct Contact {
     pub(crate) uid: Key,
     pub(crate) ip: String,
     pub(crate) port: u16,
+    pub(crate) last_seen: LastSeen,
 }
 
 impl Contact {
     pub fn new(uid: Key, ip: String, port: u16) -> Contact {
         Contact {
-           uid: uid,
+            uid: uid,
             ip,
             port: port,
+            last_seen: LastSeen::Never
         }
     }
 
@@ -24,6 +39,10 @@ impl Contact {
             ip: self.ip.clone(),
             port: self.port as i32,
         }
+    }
+
+    pub fn see(&mut self) {
+        self.last_seen = LastSeen::Seen(Utc::now());
     }
 }
 
@@ -35,8 +54,25 @@ impl Bucket {
         Bucket(VecDeque::with_capacity(K_MAX_ENTRIES))
     }
 
-    pub fn insert(&mut self, node: Box<Contact>) {
-        self.0.push_back(node);
+    pub fn insert(&mut self,mut node: Box<Contact>) {
+        let mut index = 0;
+        for i in self.0.iter() {
+            if &node ==  i{
+                break;
+            }
+            index +=1;
+        }
+
+        match self.0.get_mut(index) {
+            Some(index) => {
+                index.see();
+                self.move_to_tail(node)
+            },
+            None => {
+                node.as_mut().see();
+                self.0.push_back(node);
+            },
+        }
     }
 
     pub fn remove(&mut self, node: Box<Contact>) {
@@ -44,7 +80,6 @@ impl Bucket {
         for i in self.0.iter() {
             if &node ==  i{
                 self.0.remove(count);
-                self.0.shrink_to_fit();
                 break;
             }
             count +=1;
@@ -53,19 +88,12 @@ impl Bucket {
 
     pub fn move_to_tail(&mut self, node: Box<Contact>) {
         let mut count = 0;
-        let mut n : Option<Box<Contact>> = None;
         for i in self.0.iter() {
             if &node ==  i{
-                n = self.0.remove(count);
-                self.0.shrink_to_fit();
+                self.0.swap(count,self.0.len()-1);
                 break;
             }
             count +=1;
-        }
-
-        match n {
-            None => panic!("Node {:?} does not exist in this bucket", node),
-            Some(rnode) => self.insert(rnode),
         }
     }
 
@@ -104,7 +132,20 @@ impl Bucket {
         vec.sort_by(|a,b| dist(a,b).unwrap());
         vec
     }
+
+    pub fn insert_full(&mut self,my_key:Key,mut con : Box<Contact>) {
+        let pinged = executor::block_on(send_ping(my_key, *self.0.front().unwrap().clone()));
+        match pinged {
+            true => (),
+            false => {
+                self.0.pop_front();
+                con.see();
+                self.0.push_back(con);
+            },
+        }
+    }
 }
+
 #[derive(Debug,Default,Clone)]
 pub struct Node {
   pub left : Option<Box<Node>>,
@@ -166,8 +207,9 @@ impl Node {
                 match bits.0.chars().nth(index) {
                     Some('1') => {
                         //don't split buckets into buckets
-                        println!("full bucket not split");
-                    }
+                        self.bucket.as_mut().unwrap().insert_full(id,Box::new(con));
+                        return;
+                    },
                     Some('0') => {
                         let (b1,mut b0) = self.bucket.as_mut().unwrap().split(id,index,chunk);
                         b0.insert(Box::new(con));
@@ -208,27 +250,25 @@ impl Node {
          let bits = BinaryString::from(con.uid.as_bytes()[chunk]);
          match bits.0.chars().nth(index) {
              Some('0') =>{
-                 match self.left.as_mut() {
-                     None =>{
-                        let mut node = Node::new();
-                        let mut b = Bucket::new();
-                        b.insert(Box::new(con));
-                        node.set_bucket(b);
-                        self.set_left(node);
-                     } ,
-                     Some(node) => node.insert(con,id,index+1,chunk),
-                 }
+                 if let Some(node) = self.left.as_mut() {
+                    node.insert(con,id,index+1,chunk)
+                } else {
+                    let mut node = Node::new();
+                    let mut b = Bucket::new();
+                    b.insert(Box::new(con));
+                    node.set_bucket(b);
+                    self.set_left(node);
+                }
              },
              Some('1') => { 
-                match self.right.as_mut() {
-                    None => {
-                        let mut node = Node::new();
-                        let mut b = Bucket::new();
-                        b.insert(Box::new(con));
-                        node.set_bucket(b);
-                        self.set_right(node);
-                    },
-                    Some(node) => node.insert(con,id,index+1,chunk),
+                if let Some(node) = self.right.as_mut() {
+                    node.insert(con,id,index+1,chunk)
+                } else {
+                    let mut node = Node::new();
+                    let mut b = Bucket::new();
+                    b.insert(Box::new(con));
+                    node.set_bucket(b);
+                    self.set_right(node);
                 }
              },
              Some(_) => panic!("Invalid index"),
@@ -239,7 +279,6 @@ impl Node {
     //returns a reference to the node containing the k-bucket for the id
     pub fn lookup(&self, id: Key, mut index: usize, mut chunk: usize) -> Option<&Bucket> {
         if chunk == 31 && index == 7 {
-            println!("{:?}",self.bucket);
             return self.bucket.as_ref();
          } else if index == 8 {
              chunk += 1;
@@ -250,7 +289,6 @@ impl Node {
              Some('0') =>{
                  match &self.left {
                      None => {
-                         println!("{:?}",self.bucket);
                          self.bucket.as_ref() 
                         },
                      Some(node) => {
@@ -261,7 +299,6 @@ impl Node {
              Some('1') => { 
                 match &self.right {
                     None => {
-                        println!("{:?}",self.bucket);
                         self.bucket.as_ref()
                     },
                     Some(node) =>{

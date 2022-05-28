@@ -1,17 +1,19 @@
 use parking_lot::RwLock;
 use to_binary::BinaryString;
+use chrono::prelude::*;
 
 use super::{
     key::Key,
     rtable::Rtable,
-    node::{Node, Contact},
+    node::{Node, Contact,LastSeen},
 };
 
-#[derive(Debug,Default)]
+#[derive(Debug)]
 pub struct KadNode {
     pub uid: Key,
     pub ip: String,
     pub port: u16,
+    pub join_date: DateTime<Utc>,
     pub rtable: RwLock<Rtable>,
 }
 
@@ -24,7 +26,8 @@ impl KadNode {
             uid: key,
             ip: ip,
             port: port,
-            rtable: r
+            rtable: r,
+            join_date: Utc::now(),
         }
     }
     pub fn bootstrap() {
@@ -42,6 +45,7 @@ impl KadNode {
             uid: self.uid.clone(),
             ip: self.ip.clone(),
             port: self.port.clone(),
+            last_seen: LastSeen::Never,
         }
     }
 

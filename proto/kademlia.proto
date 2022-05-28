@@ -16,33 +16,39 @@ message PingM {
 
 message StoreReq {
     string cookie = 1;
-    bytes key = 2;
-    string value = 3;
+    bytes my_id = 2;
+    bytes key = 3;
+    string value = 4;
 }
 
 message StoreRepl {
     string cookie = 1;
+    bytes my_id = 2;
 }
 
 message FNodeReq {
     string cookie = 1;
-    bytes uid = 2;
+    bytes my_id = 2;
+    bytes uid = 3;
 }
 
 message FNodeRepl {
     string cookie = 1;
-    repeated kcontact knode = 2;
+    bytes my_id = 2;
+    repeated kcontact knode = 3;
 }
 
 message FValueReq {
    string cookie = 1;
-   bytes uid = 2;
+   bytes my_id = 2;
+   bytes uid = 3;
 }
 
 message FValueRepl {
     string cookie = 1;
-    kcontact node = 2;
-    string value = 3;
+    bytes my_id = 2;
+    kcontact node = 3;
+    string value = 4;
 }
 
 message kcontact {

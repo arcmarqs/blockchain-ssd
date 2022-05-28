@@ -35,7 +35,6 @@ impl Rtable {
                    
                     k_closest.push(contact);
                     if k_closest.len() == 20 {
-                        println!("final {:?}",k_closest);
                         return k_closest;
                     }
                 }
@@ -50,7 +49,6 @@ impl Rtable {
             index = 0;
             chunk = 0;
         }
-        println!("final {:?}",k_closest);
         k_closest
     } 
 }

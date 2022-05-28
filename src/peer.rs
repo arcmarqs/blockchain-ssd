@@ -26,10 +26,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     });
     
 
-   cl.send_ping(node.as_contact()).await;
+    cl.send_fnode(node.uid).await;
 
    //time::sleep(Duration::from_secs(5)).await;
-
+ 
    //cl.send_ping(node.as_contact()).await;
 
    signal::ctrl_c().await?; 
