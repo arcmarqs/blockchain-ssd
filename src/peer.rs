@@ -14,7 +14,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     let ip: Vec<&str>= args[1].split(":").collect();
     let port = ip[1].to_string().parse::<u16>().unwrap();
-    println!("{:?} {:?}",ip,port);
+    let n = KadNode::new(ip[0].to_string(), port);
+    println!("{:?}",n);
+    /*
     let addr =SocketAddr::new(ip[0].to_string().parse()?, port);
     let node = Arc::new(KadNode::new(ip[0].to_string(), port));
     let svnode = node.clone();
@@ -28,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let res = cl.send_fnode(node.uid).await;
     println!("{:?}",res);
-
+    */
    //time::sleep(Duration::from_secs(5)).await;
  
    //cl.send_ping(node.as_contact()).await;

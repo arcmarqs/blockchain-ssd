@@ -14,7 +14,8 @@ Cargo.lock
 
 /target
 
-
+/config/priv_key
+/config/pub_key
 # Added by cargo
 #
 # already existing elements were commented out

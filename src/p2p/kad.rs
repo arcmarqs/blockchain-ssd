@@ -23,7 +23,7 @@ pub struct KadNode {
 impl KadNode {
     pub fn new(ip: String, port: u16) -> KadNode {
        KadNode {
-            uid: Key::new(ip.clone() + &port.to_string()),
+            uid: Key::new(),
             ip: ip,
             port: port,
             rtable: RwLock::new(Rtable::new()),
