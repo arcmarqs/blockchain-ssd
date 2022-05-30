@@ -8,3 +8,5 @@ pub mod client;
 mod util;
 
 pub const K_MAX_ENTRIES: usize = 12;
+pub const C1: u32= 8;
+pub const C2: u32 = 12;

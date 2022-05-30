@@ -9,7 +9,7 @@ use futures::future::join_all;
 use super::{
     kad::KadNode,
     node::{Contact,LastSeen},
-    key::Key, K_MAX_ENTRIES,
+    key::NodeID, K_MAX_ENTRIES,
     util::*,
 };
 use kademlia::kademlia_client::KademliaClient;
@@ -23,11 +23,11 @@ pub mod kademlia {
 struct FNodeManager {
     k_closest: Arc<Mutex<Vec<Contact>>>,
     nodes_to_visit: Arc<Mutex<Vec<Contact>>>,
-    visited_nodes : Arc<RwLock<HashSet<Key>>>,  
+    visited_nodes : Arc<RwLock<HashSet<NodeID>>>,  
 }
 
 impl FNodeManager {
-    pub fn new(k_closest: Vec<Contact>, nodes_to_visit: Vec<Contact>, visited_nodes: HashSet<Key>) -> Self {
+    pub fn new(k_closest: Vec<Contact>, nodes_to_visit: Vec<Contact>, visited_nodes: HashSet<NodeID>) -> Self {
         Self {
             k_closest : Arc::new(Mutex::new(k_closest)),
             nodes_to_visit : Arc::new(Mutex::new(nodes_to_visit)),
@@ -39,11 +39,11 @@ impl FNodeManager {
         self.nodes_to_visit.lock().pop()
     }
 
-    pub fn insert_vn(&self,id: Key) -> bool {
+    pub fn insert_vn(&self,id: NodeID) -> bool {
         self.visited_nodes.write().insert(id)
     }
 
-    pub fn contains_vn(&self,id: &Key) -> bool {
+    pub fn contains_vn(&self,id: &NodeID) -> bool {
         self.visited_nodes.read().contains(id)
     }
 
@@ -64,12 +64,12 @@ impl Client {
         }
     }
 
-    pub async fn send_fnode(&self, key: Key) -> Vec<Contact> {
+    pub async fn send_fnode(&self, key: NodeID) -> Vec<Contact> {
         let my_closest = self.node.lookup(key);
         println!("close: {:?}", my_closest);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
         let k_closest= nodes_to_visit.clone();
-        let mut visited_nodes = HashSet::<Key>::new();
+        let mut visited_nodes = HashSet::<NodeID>::new();
         visited_nodes.insert(self.node.uid);
         let info = Arc::new(FNodeManager::new(k_closest,nodes_to_visit,visited_nodes));
         let mut handles = Vec::with_capacity(PARALLEL_LOOKUPS);
@@ -82,7 +82,7 @@ impl Client {
         info.get_k_closest()
     }
 
-    async fn send_fvalue(&self, key: Key) -> Option<String> {
+    async fn send_fvalue(&self, key: NodeID) -> Option<String> {
         if let Some(maybe_value) = self.node.retrieve(key) {
             return Some(maybe_value);
         }
@@ -114,7 +114,7 @@ impl Client {
         None
     }
 
-    async fn send_store(&self,key:Key, value:String, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
+    async fn send_store(&self,key:NodeID, value:String, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
         let addr = format_address(contact.ip,contact.port);
         let mut client = KademliaClient::connect(addr).await?;
         let request = StoreReq {
@@ -131,7 +131,7 @@ impl Client {
 
 }
 
-async fn a_lookup(my_key: Key, key: Key, info: Arc<FNodeManager>) {
+async fn a_lookup(my_key: NodeID, key: NodeID, info: Arc<FNodeManager>) {
     let mut local_visit = Vec::new();
      loop {
          if local_visit.is_empty(){
@@ -194,7 +194,7 @@ async fn a_lookup(my_key: Key, key: Key, info: Arc<FNodeManager>) {
  }
 
 // Inserts all contacts that are closest to the key relative to the ones already in the bucket and pushes them into the visiting list, if none are closer, returns false
-fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut closest_to_contact: Vec<Contact>,key: Key) -> (Vec<Contact>,bool) {
+fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut closest_to_contact: Vec<Contact>,key: NodeID) -> (Vec<Contact>,bool) {
     let prev_len = closest_to_contact.len();
     let dist = |a:&Contact, b: &Contact| {
         key.distance(a.uid).partial_cmp(&key.distance(b.uid))
@@ -237,7 +237,7 @@ fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut
 pub fn contact_list(kcontact_list: Vec<Kcontact>) -> Vec<Contact> {
     let converter = |k: &Kcontact| {
         Contact {
-            uid: Key::from_vec(k.uid.clone()),
+            uid: NodeID::from_vec(k.uid.clone()),
             ip: k.ip.clone(),
             port: k.port as u16,
             last_seen: LastSeen::Never,

@@ -9,7 +9,7 @@ use self::kademlia::Kcontact;
 use super::node::Contact;
 use super::{
     kad::KadNode,
-    key::Key
+    key::NodeID
 };
 
 use kademlia::{ 
@@ -38,7 +38,7 @@ impl KademliaProtocol {
         KademliaServer::<KademliaProtocol>::new(self)
     }
 
-    fn lookup(&self, key: Key) -> Vec<Kcontact> {
+    fn lookup(&self, key: NodeID) -> Vec<Kcontact> {
         let k_closest_boxed = self.node.lookup(key);
         let mut k_closest = Vec::with_capacity(k_closest_boxed.len());
 
@@ -52,7 +52,7 @@ impl KademliaProtocol {
     }
 
     fn insert_update(&self,id: Vec<u8>, remote_addr: SocketAddr) {
-        let con = Contact::new(Key::from_vec(id), remote_addr.ip().to_string(),remote_addr.port());
+        let con = Contact::new(NodeID::from_vec(id), remote_addr.ip().to_string(),remote_addr.port());
         self.node.insert(con);
     }
 }
@@ -79,7 +79,7 @@ impl Kademlia for KademliaProtocol {
         let remote_addr = request.remote_addr().unwrap();
         let req = request.into_inner();
         let key_bytes = req.key;
-        let key = Key::from_vec(key_bytes);
+        let key = NodeID::from_vec(key_bytes);
         self.insert_update(req.my_id,remote_addr);
         self.node.store_value(key, req.value);
         let reply = StoreRepl {
@@ -94,7 +94,7 @@ impl Kademlia for KademliaProtocol {
         let remote_addr = request.remote_addr().unwrap();
         let req = request.into_inner();
         let key_bytes = req.uid;
-        let lookup_key = Key::from_vec(key_bytes);
+        let lookup_key = NodeID::from_vec(key_bytes);
         self.insert_update(req.my_id,remote_addr);
         let mut value: Option<String> = None;
         let mut k_closest = Vec::new();
@@ -117,7 +117,7 @@ impl Kademlia for KademliaProtocol {
         let remote_addr = request.remote_addr().unwrap();
         let req = request.into_inner();
         let key_bytes = req.uid;
-        let lookup_key = Key::from_vec(key_bytes);
+        let lookup_key = NodeID::from_vec(key_bytes);
         let k = self.lookup(lookup_key);
         self.insert_update(req.my_id,remote_addr);
         let reply = FNodeRepl {

@@ -2,7 +2,7 @@
 use std::{collections::HashSet, cmp};
 use super::{node::{Node,Bucket, Contact},
             kad::{KadNode},
-            key::Key, K_MAX_ENTRIES,
+            key::NodeID, K_MAX_ENTRIES,
 };
 use to_binary::BinaryString;
 
@@ -17,12 +17,12 @@ impl Rtable {
     }
 
     //inserts the contact in the appropriated kbucket.
-    pub fn insert(&mut self, con: Contact, uid: Key) {
+    pub fn insert(&mut self, con: Contact, uid: NodeID) {
         self.head.insert(con,uid,0,0);
     }
 
     //returns k closest nodes to the key
-    pub fn lookup(&self, id: Key) -> Vec<Box<Contact>> {
+    pub fn lookup(&self, id: NodeID) -> Vec<Box<Contact>> {
         let mut index = 0;
         let mut chunk = 0;
         let mut k_closest = Vec::<Box<Contact>>::new();

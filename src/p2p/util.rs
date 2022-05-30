@@ -1,4 +1,4 @@
-use super::{node::{Contact, LastSeen}, key::Key};
+use super::{node::{Contact, LastSeen}, key::NodeID};
 use rand::Rng;
 use kademlia::{
     kademlia_client::KademliaClient,
@@ -28,7 +28,7 @@ pub fn gen_cookie() -> String {
     cookie.to_string()
 }
 
-pub async fn send_ping(my_key: Key,contact: Contact) -> bool {
+pub async fn send_ping(my_key: NodeID,contact: Contact) -> bool {
     let addr = format_address(contact.ip,contact.port);
     let mut client = KademliaClient::connect(addr).await.unwrap();  
     let request = PingM {

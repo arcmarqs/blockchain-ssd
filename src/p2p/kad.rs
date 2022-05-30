@@ -5,34 +5,37 @@ use to_binary::BinaryString;
 use chrono::prelude::*;
 
 use super::{
-    key::Key,
+    key::{NodeID, NodeValidator},
     rtable::Rtable,
     node::{Node, Contact,LastSeen},
 };
 
 #[derive(Debug)]
 pub struct KadNode {
-    pub uid: Key,
+    pub uid: NodeID,
     pub ip: String,
     pub port: u16,
     pub join_date: DateTime<Utc>,
-    pub rtable: RwLock<Rtable>,
-    pub data_store: RwLock<HashMap<Key,String>>,
+    validator: NodeValidator,
+    rtable: RwLock<Rtable>,
+    data_store: RwLock<HashMap<NodeID,String>>,
 }
 
 impl KadNode {
     pub fn new(ip: String, port: u16) -> KadNode {
+        let valid = NodeValidator::new();
        KadNode {
-            uid: Key::new(),
+            uid: valid.node_id,
             ip: ip,
             port: port,
             rtable: RwLock::new(Rtable::new()),
             join_date: Utc::now(),
             data_store: RwLock::new(HashMap::new()),
+            validator : valid,
         }
     }
 
-    pub fn lookup(&self,id: Key) -> Vec<Box<Contact>> {
+    pub fn lookup(&self,id: NodeID) -> Vec<Box<Contact>> {
         self.rtable.read().lookup(id)
     }
 
@@ -53,11 +56,11 @@ impl KadNode {
         println!("{:?}",self.rtable.try_read().unwrap().head);
     }
 
-    pub fn store_value(&self, key: Key, value: String) -> Option<String> {
+    pub fn store_value(&self, key: NodeID, value: String) -> Option<String> {
         self.data_store.write().insert(key, value)
     }
 
-    pub fn retrieve(&self, key: Key) -> Option<String> {
+    pub fn retrieve(&self, key: NodeID) -> Option<String> {
         if let Some(value) = self.data_store.read().get(&key) {
             Some(value.clone())
         } else {

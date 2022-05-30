@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use to_binary::BinaryString;
 use tonic::Request;
-use super::{key::{Key}, protocol::kademlia::Kcontact, K_MAX_ENTRIES,util::*};
+use super::{key::{NodeID}, protocol::kademlia::Kcontact, K_MAX_ENTRIES,util::*};
 use chrono::prelude::*;
 use log::{info, trace, warn};
 use futures::executor;
@@ -17,14 +17,14 @@ pub enum LastSeen {
 
 #[derive(Debug,Clone,Hash,PartialEq,Eq,Ord,PartialOrd)]
 pub struct Contact {
-    pub(crate) uid: Key,
+    pub(crate) uid: NodeID,
     pub(crate) ip: String,
     pub(crate) port: u16,
     pub(crate) last_seen: LastSeen,
 }
 
 impl Contact {
-    pub fn new(uid: Key, ip: String, port: u16) -> Contact {
+    pub fn new(uid: NodeID, ip: String, port: u16) -> Contact {
         Contact {
             uid: uid,
             ip,
@@ -97,7 +97,7 @@ impl Bucket {
         }
     }
 
-    pub fn split(&mut self,id: Key,index: usize,chunk: usize) -> (Bucket,Bucket) {
+    pub fn split(&mut self,id: NodeID,index: usize,chunk: usize) -> (Bucket,Bucket) {
         let mut bucket0 = Bucket::new();
         let mut bucket1 = Bucket::new();
         let byte = id.as_bytes()[chunk];
@@ -123,7 +123,7 @@ impl Bucket {
     }
 
     // returns the vector sorted by increasing distance to the given key
-    pub fn get_sorted(&self, id: Key) -> Vec<Box<Contact>> {
+    pub fn get_sorted(&self, id: NodeID) -> Vec<Box<Contact>> {
         let dist = |a:&Box<Contact>, b: &Box<Contact>| {
             id.distance(a.uid).partial_cmp(&id.distance(b.uid))
         };
@@ -133,7 +133,7 @@ impl Bucket {
         vec
     }
 
-    pub fn insert_full(&mut self,my_key:Key,mut con : Box<Contact>) {
+    pub fn insert_full(&mut self,my_key:NodeID,mut con : Box<Contact>) {
         let pinged = executor::block_on(send_ping(my_key, *self.0.front().unwrap().clone()));
         match pinged {
             true => (),
@@ -197,7 +197,7 @@ impl Node {
         self.bucket.as_mut()
     }
 
-    pub fn insert(&mut self,con: Contact,id: Key, mut index: usize, mut chunk: usize) {
+    pub fn insert(&mut self,con: Contact,id: NodeID, mut index: usize, mut chunk: usize) {
         if self.bucket.is_some() {
             if self.bucket.as_ref().unwrap().is_full() {
                 //checking the range of the node  [87,234,234,]
@@ -277,7 +277,7 @@ impl Node {
     }
 
     //returns a reference to the node containing the k-bucket for the id
-    pub fn lookup(&self, id: Key, mut index: usize, mut chunk: usize) -> Option<&Bucket> {
+    pub fn lookup(&self, id: NodeID, mut index: usize, mut chunk: usize) -> Option<&Bucket> {
         if chunk == 31 && index == 7 {
             return self.bucket.as_ref();
          } else if index == 8 {
