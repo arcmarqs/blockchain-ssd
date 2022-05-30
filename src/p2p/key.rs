@@ -13,9 +13,9 @@ use std::io::{prelude::*, BufReader, BufWriter};
 use super::{C1, C2};
 
 pub struct NodeValidator {
-    pub node_id: NodeID,
-    pub pub_key: Rsa<Public>,
-    pub nonce: u64,
+    node_id: NodeID,
+    pub_key: Rsa<Public>,
+    nonce: u64,
     priv_key: Rsa<Private>,
 }
 
@@ -48,6 +48,13 @@ impl NodeValidator {
         self.pub_key.public_key_to_pem().unwrap()
     }
 
+    pub fn get_nonce(&self) -> u64 {
+        self.nonce
+    }
+
+    pub fn get_nodeid(&self) -> NodeID{
+        self.node_id.clone()
+    }
 
 }
 
@@ -120,6 +127,18 @@ fn solve_puzzle(node_id: NodeID) -> u64 {
             return nonce;
         }
     }
+}
+
+fn verify_puzzle(node_id: NodeID, nonce: u64) -> bool {
+    let mut hasher = Sha256::new();
+    hasher.update(node_id.as_bytes());
+    hasher.update(&nonce.to_be_bytes());
+
+    if leading_zeros(&hasher.finish()) == C2 {
+        return true;
+    }
+
+    false
 }
 
 fn get_keypair() -> (H256,Vec<u8>,Vec<u8>) {

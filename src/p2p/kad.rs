@@ -25,7 +25,7 @@ impl KadNode {
     pub fn new(ip: String, port: u16) -> KadNode {
         let valid = NodeValidator::new();
        KadNode {
-            uid: valid.node_id,
+            uid: valid.get_nodeid(),
             ip: ip,
             port: port,
             rtable: RwLock::new(Rtable::new()),
