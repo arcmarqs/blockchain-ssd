@@ -8,6 +8,8 @@ use p2p::kad::KadNode;
 use tokio::time;
 use tokio::{task, signal, time::Duration};
 use std::env;
+mod auctions;
+use auctions as auct;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
