@@ -5,11 +5,17 @@ use random::prelude::*;
 
 pub struct Block {
    pub id: u64,
-   pub timestamp: i64,
    pub nonce: u64,
    pub prev_hash: U256,
    pub hash: U256,
    pub Data: String    
+}
+
+pub struct Data {
+    pub timestamp: i64,
+    pub buyer: String,
+    pub seller: String,
+    pub amount: f64 
 }
 
 pub struct Chain {
