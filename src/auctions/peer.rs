@@ -4,8 +4,6 @@ use crate::p2p::key::NodeID;
 
 use super::auction::Auction;
 
-
-
 pub struct AuctionPeer {
     node: KadNode,
     subscribed_auctions: HashMap<NodeID, Auction>,

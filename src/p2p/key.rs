@@ -174,7 +174,7 @@ fn gen_keypair(pub_location: &str, priv_location: &str) -> (H256,Vec<u8>,Vec<u8>
     let mut hashed_key;
     loop {
         let mut hasher = Sha256::new();
-        let rsa = Rsa::generate(1024).unwrap();
+        let rsa = Rsa::generate(2048).unwrap();
         private_key = rsa.private_key_to_pem_passphrase(Cipher::aes_128_cbc(), passphrase.as_bytes()).unwrap();
         public_key= rsa.public_key_to_pem().unwrap();
         hasher.update(&public_key);
