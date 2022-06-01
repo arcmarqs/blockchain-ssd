@@ -10,11 +10,11 @@ pub struct AuctionPeer {
     my_subscribers: HashMap<Auction, Vec<NodeID>>,
 }
 impl AuctionPeer{
-    pub fn new(node: KadNode,id: NodeID, auction: Auction) -> AuctionPeer {
+    pub fn new(node: KadNode, id_sa: NodeID, auction_s: Auction, id_ms: NodeID, auction_m: Auction) -> AuctionPeer {
             AuctionPeer{
                 node,
-                subscribed_auctions: HashMap::new(node, action)
-                my_subscribers: HashMap::new(action, Vec::new(id)),
+                subscribed_auctions: HashMap::new(id_sa, auction_s)
+                my_subscribers: HashMap::new(auction_m, Vec::new(id_ms)),
         }
     }
     fn get_node(&mut self) -> KadNode {return node;}
@@ -24,12 +24,11 @@ impl AuctionPeer{
     fn set_node(&mut self, x: KadNode) {
         self.node = x;
     }
-    
     fn set_subscribed_auctions(&mut self, x:NodeID, a:Auction>) { 
         self.subscribed_auctions.insert(x,a);
     }
 
     /*fn set_my_subscribers(&mut self, a:Auction, x:Vec<NodeID>>) { 
-        self.my_subscribers.insert(x,a);
+        //verificar o auction e depois a inserção nodeId
     }*/
 }
