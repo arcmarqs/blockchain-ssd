@@ -136,8 +136,8 @@ impl Bucket {
         vec
     }
 
-    pub fn insert_full(&mut self,validator: &NodeValidator, mut con : Box<Contact>) {
-        let pinged = executor::block_on(send_ping(validator, *self.0.front().unwrap().clone()));
+    pub fn insert_full(&mut self,my_address: &str,validator: &NodeValidator, mut con : Box<Contact>) {
+        let pinged = executor::block_on(send_ping(my_address,validator, *self.0.front().unwrap().clone()));
         match pinged {
             true => (),
             false => {
@@ -200,7 +200,7 @@ impl Node {
         self.bucket.as_mut()
     }
 
-    pub fn insert(&mut self,con: Contact,validator: &NodeValidator, mut index: usize, mut chunk: usize) {
+    pub fn insert(&mut self,my_address: &str,con: Contact,validator: &NodeValidator, mut index: usize, mut chunk: usize) {
         if self.bucket.is_some() {
             if self.bucket.as_ref().unwrap().is_full() {
                 //checking the range of the node  [87,234,234,]
@@ -210,7 +210,7 @@ impl Node {
                 match bits.0.chars().nth(index) {
                     Some('1') => {
                         //don't split buckets into buckets
-                        self.bucket.as_mut().unwrap().insert_full(validator,Box::new(con));
+                        self.bucket.as_mut().unwrap().insert_full(my_address,validator,Box::new(con));
                         return;
                     },
                     Some('0') => {
@@ -254,7 +254,7 @@ impl Node {
          match bits.0.chars().nth(index) {
              Some('0') =>{
                  if let Some(node) = self.left.as_mut() {
-                    node.insert(con,validator,index+1,chunk)
+                    node.insert(my_address,con,validator,index+1,chunk)
                 } else {
                     let mut node = Node::new();
                     let mut b = Bucket::new();
@@ -265,7 +265,7 @@ impl Node {
              },
              Some('1') => { 
                 if let Some(node) = self.right.as_mut() {
-                    node.insert(con,validator,index+1,chunk)
+                    node.insert(my_address,con,validator,index+1,chunk)
                 } else {
                     let mut node = Node::new();
                     let mut b = Bucket::new();

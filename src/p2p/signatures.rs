@@ -39,7 +39,7 @@ pub fn sign_weak_header_rep(timestamp: i64, pub_key: &[u8], address: &str, rep_s
     encrypt_message(pub_key, &hasher.finish())
 }
 
-pub fn validate_weak_req(validator: &NodeValidator, header: &Header, address: &str) -> Result<Vec<u8>, &'static str> {
+pub fn validate_weak_req(validator: &NodeValidator, header: &Header, address: &str) -> Result<(), &'static str> {
     let node_id = NodeID::from_vec(header.my_id.clone());
     let nonce = header.nonce;
     let signature = validator.decrypt(&header.signature);
@@ -51,14 +51,14 @@ pub fn validate_weak_req(validator: &NodeValidator, header: &Header, address: &s
         hasher.update(address.as_bytes());
         let sign = hasher.finish().to_vec();
         if  sign == signature {
-            return Ok(sign);
+            return Ok(());
         }
     }
      
     Err("invalid message")
 }
 
-pub fn validate_weak_rep(validator: &NodeValidator, header: &Header, address: &str, req_signature: &[u8]) -> Result<Vec<u8>, &'static str> {
+pub fn validate_weak_rep(validator: &NodeValidator, header: &Header, address: &str, req_signature: &[u8]) -> Result<(), &'static str> {
     let node_id = NodeID::from_vec(header.my_id.clone());
     let nonce = header.nonce;
     let signature = validator.decrypt(&header.signature);
@@ -71,14 +71,14 @@ pub fn validate_weak_rep(validator: &NodeValidator, header: &Header, address: &s
         hasher.update(req_signature);
         let sign = hasher.finish().to_vec();
         if  sign == signature {
-            return Ok(sign);
+            return Ok(());
         }
     }
      
     Err("invalid message")
 }
 
-pub fn validate_strong_rep(validator: &NodeValidator, header: &Header, address: &str, data: &[u8], req_signature: &[u8]) -> Result<Vec<u8>, &'static str> {
+pub fn validate_strong_rep(validator: &NodeValidator, header: &Header, address: &str, data: &[u8], req_signature: &[u8]) -> Result<(), &'static str> {
     let node_id = NodeID::from_vec(header.my_id.clone());
     let nonce = header.nonce;
     let signature = validator.decrypt(&header.signature);
@@ -92,7 +92,7 @@ pub fn validate_strong_rep(validator: &NodeValidator, header: &Header, address: 
         hasher.update(req_signature);
         let sign = hasher.finish().to_vec();
         if  sign == signature {
-            return Ok(sign);
+            return Ok(());
         }
     }
      

@@ -3,6 +3,7 @@ use chrono::Utc;
 use futures::future::join_all;
 use log::warn;
 use parking_lot::{RwLock, Mutex};
+use prost::Message;
 
 use super::{
     node::Contact, 
@@ -120,9 +121,10 @@ impl Client {
         None
     }
 
-    async fn send_store(&self,key:NodeID, value:String, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
-        let mut client = KademliaClient::connect(contact.address.clone()).await?;
+    async fn send_store(&self,key:NodeID, value:String, contact: Contact) -> Result<(),&'static str> {
+        let mut client = KademliaClient::connect(contact.address.clone()).await.unwrap();
         let timestamp = Utc::now().timestamp();
+        let request_signature = Signer::sign_strong_header_req(timestamp,&contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
         let request = StoreReq {
                 cookie: gen_cookie(),
                 header: Some( Header {
@@ -130,15 +132,24 @@ impl Client {
                     pub_key: self.node.get_pubkey(),
                     nonce: self.node.get_nonce(),
                     timestamp,
-                    signature: Signer::sign_strong_header_req(timestamp,&contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned()),
+                    signature: request_signature.clone() ,
                 }),
                 target_id: key.as_bytes().to_owned(),
                 value: value,
             };
-        let rep =  client.store(request).await;
-        
+        let response =  client.store(request).await;
 
-        Ok(())
+        match response {
+            Ok(res) => {
+                let res = res.into_inner();
+                let header = res.header.unwrap();
+                if let Ok(()) = Signer::validate_weak_rep(self.node.get_validator(),&header,&contact.address,&request_signature) {
+                    return Ok(());
+                }
+                Err("Failed to verify signature")
+             },
+            Err(_) => Err("Failed to unwrap response"),
+        }
     }
 
 async fn a_lookup(&self, key: NodeID, info: Arc<FNodeManager>) {
@@ -162,14 +173,15 @@ async fn a_lookup(&self, key: NodeID, info: Arc<FNodeManager>) {
          match remote {
              Ok(mut remote) => {
                 let timestamp = Utc::now().timestamp();
-                 let request = FNodeReq {
-                     cookie: gen_cookie(),
-                     header: Some( Header {
+                let request_signature = Signer::sign_weak_header_req(timestamp,&self.node.get_pubkey(),&node.address);
+                let request = FNodeReq {
+                    cookie: gen_cookie(),
+                    header: Some( Header {
                         my_id: self.node.uid.as_bytes().to_owned(),
                         pub_key: self.node.get_pubkey(),
                         nonce: self.node.get_nonce(),
                         timestamp,
-                        signature: Signer::sign_strong_header_req(timestamp,&node.get_pubkey(),&self.node.address,key.as_bytes().to_owned()),
+                        signature: request_signature.clone(),
                     }),
                      target_id: key.as_bytes().to_owned(),
                  };
@@ -180,17 +192,23 @@ async fn a_lookup(&self, key: NodeID, info: Arc<FNodeManager>) {
                  match response {
                      Ok(response) =>{
                          let response = response.into_inner();
-                         let closest_to_contact = contact_list(response.nodes.unwrap().node);
-                         let (lv,success):(Vec<Contact>,bool);
-                         // limiting the range of the lock
-                         {
-                             let mut lock_k_closest = info.k_closest.lock();
-                             (lv,success) = insert_closest(&mut *lock_k_closest,local_visit.clone(),closest_to_contact, key);
-                         }
-                         if !success {
-                             return;
-                         }
-                         local_visit = lv;
+                         let header = response.header.unwrap();
+                         let data = response.nodes.unwrap();
+                         let mut databuf = Vec::new();
+                         let _ = data.encode(&mut databuf);
+                         if let Ok(()) = Signer::validate_strong_rep(self.node.get_validator(),&header,&node.address,&databuf,&request_signature) {
+                            let closest_to_contact = contact_list(data.node);
+                            let (lv,success):(Vec<Contact>,bool);
+                            // limiting the range of the lock
+                            {
+                                let mut lock_k_closest = info.k_closest.lock();
+                                (lv,success) = insert_closest(&mut *lock_k_closest,local_visit.clone(),closest_to_contact, key);
+                            }
+                            if !success {
+                                return;
+                            }
+                            local_visit = lv;
+                        }
                      },
                      Err(err) => {
                          warn!("node {:?} didn't respond: {} ", &node.address, err);

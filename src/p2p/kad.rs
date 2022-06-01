@@ -44,7 +44,7 @@ impl KadNode {
     }
 
     pub fn insert(&self,contact:Contact) {
-        self.rtable.write().insert(contact, &self.validator)
+        self.rtable.write().insert(&self.address,contact, &self.validator)
     }
 
     pub fn print_rtable(&self) {
