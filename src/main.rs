@@ -11,12 +11,14 @@ use std::env;
 mod auctions;
 use auctions as auct;
 
+use crate::p2p::key::verify_puzzle;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
+  /*   let args: Vec<String> = env::args().collect();
     let ip: Vec<&str>= args[1].split(":").collect();
-    let port = ip[1].to_string().parse::<u16>().unwrap();
-    let n = KadNode::new(ip[0].to_string(), port);
+    let port = ip[1].to_string().parse::<u16>().unwrap(); */
+    let n = KadNode::new("0.0.0.0:50050".to_owned());
     println!("{:?}",n);
     /*
     let addr =SocketAddr::new(ip[0].to_string().parse()?, port);

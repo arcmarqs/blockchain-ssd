@@ -1,35 +1,31 @@
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
 use parking_lot::RwLock;
-use to_binary::BinaryString;
-use chrono::prelude::*;
 
-use super::{
-    key::{NodeID, NodeValidator},
-    rtable::Rtable,
-    node::{Node, Contact,LastSeen},
-};
+use super::{key::{NodeValidator, NodeID}, rtable::Rtable, node::Contact};
 
 #[derive(Debug)]
 pub struct KadNode {
     pub uid: NodeID,
-    pub ip: String,
-    pub port: u16,
+    pub address: String,
     pub join_date: DateTime<Utc>,
+    timestamp: i64,
     validator: NodeValidator,
     rtable: RwLock<Rtable>,
     data_store: RwLock<HashMap<NodeID,String>>,
 }
 
 impl KadNode {
-    pub fn new(ip: String, port: u16) -> KadNode {
+    pub fn new(addr: String) -> KadNode {
         let valid = NodeValidator::new();
+        let date = Utc::now();
        KadNode {
             uid: valid.get_nodeid(),
-            ip: ip,
-            port: port,
+            address: addr,
             rtable: RwLock::new(Rtable::new()),
-            join_date: Utc::now(),
+            join_date: date,
+            timestamp: date.timestamp(),
             data_store: RwLock::new(HashMap::new()),
             validator : valid,
         }
@@ -40,16 +36,15 @@ impl KadNode {
     }
 
     pub fn as_contact(&self) -> Contact {
-        Contact {
-            uid: self.uid.clone(),
-            ip: self.ip.clone(),
-            port: self.port.clone(),
-            last_seen: LastSeen::Never,
-        }
+        Contact::new(
+            self.uid.clone(),
+            self.address.clone(),
+            self.validator.get_pubkey(),
+        )
     }
 
     pub fn insert(&self,contact:Contact) {
-        self.rtable.write().insert(contact, self.uid)
+        self.rtable.write().insert(contact, &self.validator)
     }
 
     pub fn print_rtable(&self) {
@@ -66,5 +61,17 @@ impl KadNode {
         } else {
             None
         }
+    }
+
+    pub fn get_nonce(&self) -> u64 {
+        self.validator.get_nonce()
+    }
+
+    pub fn get_pubkey(&self) -> Vec<u8> {
+        self.validator.get_pubkey()
+    }
+
+    pub fn get_validator(&self) -> &NodeValidator {
+        &self.validator
     }
 }

@@ -1,16 +1,11 @@
-use digest::Digest;
-use openssl::pkey::{Public, Private};
-use openssl::symm::Cipher;
+use std::{fmt, fs::{File, self}, io::{BufReader, Read}};
+
+use openssl::{pkey::{Public, Private}, rsa::{Rsa, Padding}, sha::Sha256, symm::Cipher};
 use primitive_types::H256;
-use openssl::sha::Sha256;
-use openssl::rsa::{Rsa,Padding};
 use rand::Rng;
-use to_binary::BinaryString;
-use core::fmt;
-use std::fs::File;
-use std::fs;
-use std::io::{prelude::*, BufReader, BufWriter};
+
 use super::{C1, C2};
+
 
 pub struct NodeValidator {
     node_id: NodeID,
@@ -37,11 +32,10 @@ impl NodeValidator {
         }   
     }
 
-    pub fn decrypt(&self, encrypted: Vec<u8>) -> String {
+    pub fn decrypt(&self, encrypted: &[u8]) -> Vec<u8> {
         let mut buf: Vec<u8> = vec![0; self.priv_key.size() as usize];
-        self.priv_key.private_decrypt(&encrypted, &mut buf, Padding::PKCS1).unwrap();
-
-        String::from_utf8(buf).unwrap()
+        self.priv_key.private_decrypt(encrypted, &mut buf, Padding::PKCS1).unwrap();
+        buf
     }
 
     pub fn get_pubkey(&self) -> Vec<u8> {
@@ -67,7 +61,7 @@ impl fmt::Debug for NodeValidator {
          .finish()
     }
 }
-#[derive(Debug,Default, Hash, Eq, Clone, Ord, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Default, Hash, Eq, Clone, Ord, Copy, PartialEq, PartialOrd)]
 pub struct NodeID(H256);
 
 impl NodeID {
@@ -123,18 +117,18 @@ fn solve_puzzle(node_id: NodeID) -> u64 {
         hasher.update(&node_id.as_bytes());
         hasher.update(&nonce_bytes);
 
-        if leading_zeros(&hasher.finish()) == C2 {
+        if leading_zeros(&hasher.finish()) >= C2 {
             return nonce;
         }
     }
 }
 
-fn verify_puzzle(node_id: NodeID, nonce: u64) -> bool {
+pub fn verify_puzzle(node_id: NodeID, nonce: u64) -> bool {
     let mut hasher = Sha256::new();
     hasher.update(node_id.as_bytes());
     hasher.update(&nonce.to_be_bytes());
 
-    if leading_zeros(&hasher.finish()) == C2 {
+    if leading_zeros(&hasher.finish()) >= C2 {
         return true;
     }
 
@@ -157,7 +151,7 @@ fn get_keypair() -> (H256,Vec<u8>,Vec<u8>) {
             let id_key = hasher.finish();
             hasher = Sha256::new();
             hasher.update(&id_key);
-            if leading_zeros(&hasher.finish()) == C1 {
+            if leading_zeros(&hasher.finish()) >= C1 {
                 //if the node id doesn't solve the static puzzle we create a new pair
                 return gen_keypair(pub_location,priv_location);
             }
@@ -181,7 +175,7 @@ fn gen_keypair(pub_location: &str, priv_location: &str) -> (H256,Vec<u8>,Vec<u8>
         hashed_key = hasher.finish();
         hasher = Sha256::new();
         hasher.update(&hashed_key);
-        if leading_zeros(&hasher.finish()) == C1 {
+        if leading_zeros(&hasher.finish()) >= C1 {
             break;
         }
     }
@@ -204,10 +198,10 @@ pub fn leading_zeros(bytes: &[u8]) -> u32{
     zeros
 }
 
-pub fn encrypt_message(pub_key: Rsa<Public>, message: &str) -> Vec<u8> {
-
+pub fn encrypt_message(publ_key: &[u8], message: &[u8]) -> Vec<u8> {
+    let pub_key = Rsa::public_key_from_pem(publ_key).unwrap();
     let mut buf: Vec<u8> = vec![0; pub_key.size() as usize];
-    pub_key.public_encrypt(message.as_bytes(), &mut buf, Padding::PKCS1).unwrap();
+    pub_key.public_encrypt(message, &mut buf, Padding::PKCS1).unwrap();
 
     buf
 }

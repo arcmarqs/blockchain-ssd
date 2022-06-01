@@ -1,23 +1,19 @@
-
-use parking_lot::{Mutex,RwLock};
-use tokio::{task::{self, JoinHandle}, try_join};
-use tonic::{transport::{Server, Channel}, Request, Response, Status};
-use log::{info, trace, warn};
-use to_binary::BinaryString;
-use std::{io, net::SocketAddr, sync::{Arc}, collections::HashSet, cmp::Ordering};
+use std::{sync::Arc, collections::HashSet, cmp::Ordering};
+use chrono::Utc;
 use futures::future::join_all;
+use log::warn;
+use parking_lot::{RwLock, Mutex};
+
 use super::{
-    kad::KadNode,
-    node::{Contact,LastSeen},
-    key::NodeID, K_MAX_ENTRIES,
-    util::*,
+    node::Contact, 
+    key::NodeID, 
+    kad::KadNode, 
+    signatures::Signer,
+    util::gen_cookie, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self}
 };
-use kademlia::kademlia_client::KademliaClient;
-use kademlia::{PingM,StoreReq,StoreRepl,FNodeReq,FNodeRepl,FValueReq,FValueRepl,Kcontact};
-const PARALLEL_LOOKUPS: usize = 3;
-pub mod kademlia {
-    tonic::include_proto!("kadproto");
-}
+
+const PARALLEL_LOOKUPS: i32 = 3;
+
 
 #[derive(Debug,Clone)]
 struct FNodeManager {
@@ -64,7 +60,7 @@ impl Client {
         }
     }
 
-    pub async fn send_fnode(&self, key: NodeID) -> Vec<Contact> {
+    pub async fn send_fnode(&'static self, key: NodeID) -> Vec<Contact> {
         let my_closest = self.node.lookup(key);
         println!("close: {:?}", my_closest);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
@@ -72,9 +68,9 @@ impl Client {
         let mut visited_nodes = HashSet::<NodeID>::new();
         visited_nodes.insert(self.node.uid);
         let info = Arc::new(FNodeManager::new(k_closest,nodes_to_visit,visited_nodes));
-        let mut handles = Vec::with_capacity(PARALLEL_LOOKUPS);
+        let mut handles = Vec::with_capacity(PARALLEL_LOOKUPS.try_into().unwrap());
         for _i in 0..PARALLEL_LOOKUPS {
-            handles.push(a_lookup(self.node.uid,key,info.clone()));
+            handles.push(self.a_lookup(key,info.clone()));
         }
         
         join_all(handles.into_iter().map(tokio::spawn)).await;
@@ -82,27 +78,37 @@ impl Client {
         info.get_k_closest()
     }
 
-    async fn send_fvalue(&self, key: NodeID) -> Option<String> {
+    async fn send_fvalue(&'static self, key: NodeID) -> Option<Vec<u8>> {
         if let Some(maybe_value) = self.node.retrieve(key) {
-            return Some(maybe_value);
+            return Some(maybe_value.as_bytes().to_owned());
         }
         
         let k_closest = self.send_fnode(key).await;
         for contact in k_closest {
-            let addr = format_address(contact.ip,contact.port);
-            let mut client = KademliaClient::connect(addr).await.unwrap();  
-
+            let mut client = KademliaClient::connect(contact.address.clone()).await.unwrap();  
+            let timestamp = Utc::now().timestamp();
             let request = FValueReq {
                 cookie: gen_cookie(),
-                my_id : self.node.uid.as_bytes().to_owned(),
-                uid: key.as_bytes().to_owned(),
+                header: Some( Header {
+                    my_id: self.node.uid.as_bytes().to_owned(),
+                    pub_key: self.node.get_pubkey(),
+                    nonce: self.node.get_nonce(),
+                    timestamp,
+                    signature: Signer::sign_strong_header_req(timestamp,&contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned()),
+                }),
+                target_id: key.as_bytes().to_owned(),
             };
+
             match client.find_value(request).await {
                 Ok(res) => {
                     let response = res.into_inner();
-                    match response.value {
-                        Some(value) => return Some(value),
-                        None => return None,
+                    match response.has_value.unwrap() {
+                        kademlia::f_value_repl::HasValue::Node(n) => {
+                            continue;
+                        },
+                        kademlia::f_value_repl::HasValue::Value(v) => {
+                            return Some(v);
+                        },
                     }
                 },
                 Err(_) => {
@@ -115,12 +121,18 @@ impl Client {
     }
 
     async fn send_store(&self,key:NodeID, value:String, contact: Contact) -> Result<(), Box<dyn std::error::Error>> {
-        let addr = format_address(contact.ip,contact.port);
-        let mut client = KademliaClient::connect(addr).await?;
+        let mut client = KademliaClient::connect(contact.address.clone()).await?;
+        let timestamp = Utc::now().timestamp();
         let request = StoreReq {
                 cookie: gen_cookie(),
-                my_id : self.node.uid.as_bytes().to_owned(),
-                key: key.as_bytes().to_owned(),
+                header: Some( Header {
+                    my_id: self.node.uid.as_bytes().to_owned(),
+                    pub_key: self.node.get_pubkey(),
+                    nonce: self.node.get_nonce(),
+                    timestamp,
+                    signature: Signer::sign_strong_header_req(timestamp,&contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned()),
+                }),
+                target_id: key.as_bytes().to_owned(),
                 value: value,
             };
         let rep =  client.store(request).await;
@@ -129,9 +141,7 @@ impl Client {
         Ok(())
     }
 
-}
-
-async fn a_lookup(my_key: NodeID, key: NodeID, info: Arc<FNodeManager>) {
+async fn a_lookup(&self, key: NodeID, info: Arc<FNodeManager>) {
     let mut local_visit = Vec::new();
      loop {
          if local_visit.is_empty(){
@@ -148,14 +158,20 @@ async fn a_lookup(my_key: NodeID, key: NodeID, info: Arc<FNodeManager>) {
              continue
          }
 
-         let addr = format_address(node.ip,node.port);
-         let remote = KademliaClient::connect(addr.clone()).await;
+         let remote = KademliaClient::connect(node.address.clone()).await;
          match remote {
              Ok(mut remote) => {
+                let timestamp = Utc::now().timestamp();
                  let request = FNodeReq {
                      cookie: gen_cookie(),
-                     my_id: my_key.as_bytes().to_owned(),
-                     uid: key.as_bytes().to_owned(),
+                     header: Some( Header {
+                        my_id: self.node.uid.as_bytes().to_owned(),
+                        pub_key: self.node.get_pubkey(),
+                        nonce: self.node.get_nonce(),
+                        timestamp,
+                        signature: Signer::sign_strong_header_req(timestamp,&node.get_pubkey(),&self.node.address,key.as_bytes().to_owned()),
+                    }),
+                     target_id: key.as_bytes().to_owned(),
                  };
 
                  let response = remote.find_node(request).await;
@@ -164,7 +180,7 @@ async fn a_lookup(my_key: NodeID, key: NodeID, info: Arc<FNodeManager>) {
                  match response {
                      Ok(response) =>{
                          let response = response.into_inner();
-                         let closest_to_contact = contact_list(response.knode);
+                         let closest_to_contact = contact_list(response.nodes.unwrap().node);
                          let (lv,success):(Vec<Contact>,bool);
                          // limiting the range of the lock
                          {
@@ -177,21 +193,19 @@ async fn a_lookup(my_key: NodeID, key: NodeID, info: Arc<FNodeManager>) {
                          local_visit = lv;
                      },
                      Err(err) => {
-                         warn!("node {:?} didn't respond: {} ", addr, err);
-                         // function to remove contact from route table
+                         warn!("node {:?} didn't respond: {} ", &node.address, err);
                      },
                  };
              }
              Err(err) =>{
-                 warn!("address {:?} unreachable, removing from route table: {}",addr,err);
-                 //node still in visited so it's not contacted again.v 
+                 warn!("address {:?} unreachable, removing from route table: {}", &node.address,err);
+                 //node still in visited so it's not contacted again.
                  info.insert_vn(node.uid);
-                 //info.insert_visited(node.uid);
-                 // need to implement function to remove contact from route table.
              }  
          }
      }   
  }
+}
 
 // Inserts all contacts that are closest to the key relative to the ones already in the bucket and pushes them into the visiting list, if none are closer, returns false
 fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut closest_to_contact: Vec<Contact>,key: NodeID) -> (Vec<Contact>,bool) {
@@ -236,13 +250,11 @@ fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut
 
 pub fn contact_list(kcontact_list: Vec<Kcontact>) -> Vec<Contact> {
     let converter = |k: &Kcontact| {
-        Contact {
-            uid: NodeID::from_vec(k.uid.clone()),
-            ip: k.ip.clone(),
-            port: k.port as u16,
-            last_seen: LastSeen::Never,
-        }
+        Contact::new(
+            NodeID::from_vec(k.uid.clone()),
+            k.address.clone(),
+            k.pub_key.clone()
+        )
     };
-
     kcontact_list.iter().map(|a| converter(a) ).collect()
 }

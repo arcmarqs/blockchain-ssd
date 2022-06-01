@@ -1,14 +1,8 @@
-use super::{node::{Contact, LastSeen}, key::NodeID};
+use chrono::Utc;
 use rand::Rng;
-use kademlia::{
-    kademlia_client::KademliaClient,
-    PingM,Kcontact
-};
-use tonic::{Request};
 
-mod kademlia {
-    tonic::include_proto!("kadproto");
-}
+use super::{key::NodeValidator, node::Contact, signatures::Signer, kademlia::{kademlia_client::KademliaClient, PingM, Kcontact, Header}};
+
 
 pub fn format_address(ip: String, port: u16) -> String {
     ("http://".to_owned() + &ip + ":" + &port.to_string()).to_owned()
@@ -17,8 +11,8 @@ pub fn format_address(ip: String, port: u16) -> String {
 pub fn format_kcontact(contact: Contact) -> Kcontact {
     Kcontact {
         uid : contact.uid.as_bytes().to_owned(),
-        ip: contact.ip.clone(),
-        port: contact.port.clone() as i32,
+        address: contact.address.clone(),
+        pub_key: contact.get_pubkey().to_vec(),
     }
 }
 
@@ -28,12 +22,18 @@ pub fn gen_cookie() -> String {
     cookie.to_string()
 }
 
-pub async fn send_ping(my_key: NodeID,contact: Contact) -> bool {
-    let addr = format_address(contact.ip,contact.port);
-    let mut client = KademliaClient::connect(addr).await.unwrap();  
+pub async fn send_ping(validator: &NodeValidator, contact: Contact) -> bool {
+    let mut client = KademliaClient::connect(contact.address.clone()).await.unwrap();
+    let timestamp = Utc::now().timestamp();
     let request = PingM {
             cookie: gen_cookie(),
-            id : my_key.as_bytes().to_owned(),
+            header: Some( Header {
+                my_id: validator.get_nodeid().as_bytes().to_owned(),
+                pub_key: validator.get_pubkey(),
+                nonce: validator.get_nonce(),
+                timestamp: timestamp,
+                signature: Signer::sign_weak_header_req(timestamp,&validator.get_pubkey(),&contact.address),
+            }),
         };
 
     match client.ping(request).await {
