@@ -131,7 +131,7 @@ impl Kademlia for KademliaProtocol {
                     pub_key: self.node.get_pubkey(),
                     nonce: self.node.get_nonce(),
                     timestamp,
-                    signature : Signer::sign_strong_header_rep(timestamp,&header.pub_key,&remote_addr.to_string(),databuf, &req_hash),
+                    signature : Signer::sign_strong_header_rep(timestamp,&header.pub_key,&self.node.address,databuf, &req_hash),
                 }),
                 has_value: Some(has_value),
             };

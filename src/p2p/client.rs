@@ -204,7 +204,7 @@ async fn a_lookup(key: NodeID, info: Arc<FNodeManager>) {
          match remote {
              Ok(mut remote) => {
                 let timestamp = Utc::now().timestamp();
-                let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,&info.get_pubkey(),&node.address);
+                let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,&info.get_pubkey(),&info.address);
                 let request = FNodeReq {
                     cookie: gen_cookie(),
                     header: Some( Header {
@@ -227,7 +227,7 @@ async fn a_lookup(key: NodeID, info: Arc<FNodeManager>) {
                          let data = response.nodes.unwrap();
                          let mut databuf = Vec::new();
                          let _ = data.encode(&mut databuf);
-                         if let Ok(()) = Signer::validate_strong_rep(info.get_validator(),&header,&info.address,&databuf,&hash) {
+                         if let Ok(()) = Signer::validate_strong_rep(info.get_validator(),&header,&node.address,&databuf,&hash) {
                             let closest_to_contact = contact_list(data.node);
                             let (lv,success):(Vec<Contact>,bool);
                             // limiting the range of the lock
