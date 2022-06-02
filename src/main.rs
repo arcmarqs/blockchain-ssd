@@ -16,10 +16,11 @@ use crate::p2p::key::verify_puzzle;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    //  let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
     //  let ip: Vec<&str>= args[1].split(":").collect();
     //  let port = ip[1].to_string().parse::<u16>().unwrap();
-    let address = "127.0.0.1:47866".to_owned();
+    let address: String = args[1].split("\n").collect();
+    println!("address: {:?}", address);
     let node = Arc::new(KadNode::new(address.clone()));
     let cl = Client::new(node.clone());
     let svnode = node.clone();
