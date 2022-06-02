@@ -3,7 +3,7 @@ syntax = "proto3";
 package kadproto;
 
 service Kademlia {
-    rpc Ping(PingM) returns (PingM) {}
+    rpc Ping(PingM) returns(PingM) {}
     rpc Store(StoreReq) returns(StoreRepl) {}
     rpc Find_Node(FNodeReq) returns(FNodeRepl) {}
     rpc Find_Value(FValueReq) returns(FValueRepl) {}
@@ -11,48 +11,61 @@ service Kademlia {
 
 message PingM {
     string cookie = 1; // "Magic cookie" used to track this exact ping request
-    bytes id = 2;
+    header header = 2;
 }
 
 message StoreReq {
     string cookie = 1;
-    bytes my_id = 2;
-    bytes key = 3;
+    header header = 2;
+    bytes target_id = 3;
     string value = 4;
 }
 
 message StoreRepl {
     string cookie = 1;
-    bytes my_id = 2;
+    header header = 2;
 }
 
 message FNodeReq {
     string cookie = 1;
-    bytes my_id = 2;
-    bytes uid = 3;
+    header header = 2;
+    bytes target_id = 3;
 }
 
 message FNodeRepl {
     string cookie = 1;
-    bytes my_id = 2;
-    repeated kcontact knode = 3;
+    header header = 2;
+    kclosest nodes = 3;
 }
 
 message FValueReq {
    string cookie = 1;
-   bytes my_id = 2;
-   bytes uid = 3;
+   header header = 2;
+   bytes target_id = 3;
 }
 
 message FValueRepl {
     string cookie = 1;
-    bytes my_id = 2;
-    repeated kcontact node = 3;
-    string value = 4;
+    header header = 2;
+    oneof has_value {
+        kclosest node = 4;
+        bytes value = 5;
+    }
 }
 
+message kclosest {
+    repeated kcontact node = 1;
+}
 message kcontact {
     bytes uid = 1;
-    string ip = 2;
-    int32 port = 3;
+    string address = 2;
+    bytes pub_key = 3;
+}
+
+message header {
+    bytes my_id = 1;
+    bytes pub_key = 2;
+    uint64 nonce = 3;
+    int64 timestamp = 4;
+    bytes signature = 5;
 }

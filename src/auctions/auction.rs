@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 
 use crate::p2p::key::NodeID;
 
@@ -12,21 +12,22 @@ pub struct Auction {
     seller: NodeID,
     initial_price: f32,
     current_price: f32,
-    highest_price: NodeID,
+    highest_bidder: NodeID,
     starting_time: DateTime<Utc>,
     time_remaining: Duration,
     state: AuctionState,
     auction_id: String,
 }
+
 impl Auction{
-    pub fn new(title: String, seller: NodeID, initial_price: f32, current_price: f32, highest_price: NodeID, time_remaining: Duration,state: AuctionState,
+    pub fn new(title: String, seller: NodeID, initial_price: f32, current_price: f32, highest_bidder: NodeID, time_remaining: Duration,state: AuctionState,
         auction_id: String)-> Auction {
         Auction{
             title,
             seller,
             initial_price,
             current_price,
-            highest_price,
+            highest_bidder,
             starting_time: DateTime::new(Utc::now()),
             time_remaining,
             state,
@@ -34,15 +35,15 @@ impl Auction{
         }
     }
 
-    pub fn get_title(&mut self) -> String {return title;}
-    pub fn get_seller(&mut self) -> NodeID {return seller;}
-    pub fn get_initial_price(&mut self) -> f32 {return initial_price;}
-    pub fn get_current_price(&mut self) -> f32 {return current_price;}
-    pub fn get_highest_price(&mut self) -> NodeID {return highest_price;}
-    pub fn get_starting_time(&mut self) -> DateTime<Utc> {return starting_time;}
-    pub fn get_time_remaining(&mut self) -> Duration {return time_remaining;}
-    pub fn get_state(&mut self) -> AuctionState {return state;}
-    pub fn get_auction_id(&mut self) -> String {return auction_id;}
+    pub fn get_title(&self) -> String {self.title}
+    pub fn get_seller(&self) -> NodeID {self.seller}
+    pub fn get_initial_price(&self) -> f32 {self.initial_price}
+    pub fn get_current_price(&self) -> f32 {self.current_price}
+    pub fn get_highest_price(&self) -> NodeID {self.highest_price}
+    pub fn get_starting_time(&self) -> DateTime<Utc> {self.starting_time}
+    pub fn get_time_remaining(&self) -> Duration {self.time_remaining}
+    pub fn get_state(&self) -> AuctionState {self.state}
+    pub fn get_auction_id(&self) -> String {self.auction_id}
 
     pub fn set_title(&mut self, x: String) { self.title = x;}
 

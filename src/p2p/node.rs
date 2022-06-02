@@ -1,16 +1,15 @@
 use std::collections::VecDeque;
-use to_binary::BinaryString;
-use tonic::Request;
-use super::{key::{NodeID}, protocol::kademlia::Kcontact, K_MAX_ENTRIES,util::*};
-use chrono::prelude::*;
-use log::{info, trace, warn};
+
+use chrono::{DateTime, Utc};
 use futures::executor;
-pub mod kademlia {
-    tonic::include_proto!("kadproto");
-}
+use to_binary::BinaryString;
+
+use super::{key::{NodeID, NodeValidator}, K_MAX_ENTRIES, kademlia::Kcontact, client::send_ping};
+
+
 
 #[derive(Debug,Clone,Hash,PartialEq,Eq,Ord,PartialOrd)]
-pub enum LastSeen {
+enum LastSeen {
     Never,
     Seen(DateTime<Utc>),
 }
@@ -18,26 +17,30 @@ pub enum LastSeen {
 #[derive(Debug,Clone,Hash,PartialEq,Eq,Ord,PartialOrd)]
 pub struct Contact {
     pub(crate) uid: NodeID,
-    pub(crate) ip: String,
-    pub(crate) port: u16,
-    pub(crate) last_seen: LastSeen,
+    pub(crate) address: String,
+    last_seen: LastSeen,
+    pub_key: Vec<u8>,
 }
 
 impl Contact {
-    pub fn new(uid: NodeID, ip: String, port: u16) -> Contact {
+    pub fn new(uid: NodeID, address: String, pub_key: Vec<u8>) -> Contact {
         Contact {
-            uid: uid,
-            ip,
-            port: port,
+            uid,
+            address,
+            pub_key,
             last_seen: LastSeen::Never
         }
+    }
+
+    pub fn get_pubkey(&self) -> &[u8] {
+        self.pub_key.as_ref()
     }
 
     pub fn as_kcontact(&self) -> Kcontact {
         Kcontact {
             uid: self.uid.as_bytes().to_owned(),
-            ip: self.ip.clone(),
-            port: self.port as i32,
+            address: self.address.clone(),
+            pub_key: self.pub_key.to_owned(),
         }
     }
 
@@ -133,8 +136,8 @@ impl Bucket {
         vec
     }
 
-    pub fn insert_full(&mut self,my_key:NodeID,mut con : Box<Contact>) {
-        let pinged = executor::block_on(send_ping(my_key, *self.0.front().unwrap().clone()));
+    pub fn insert_full(&mut self,my_address: &str,validator: &NodeValidator, mut con : Box<Contact>) {
+        let pinged = executor::block_on(send_ping(my_address,validator, *self.0.front().unwrap().clone()));
         match pinged {
             true => (),
             false => {
@@ -197,21 +200,21 @@ impl Node {
         self.bucket.as_mut()
     }
 
-    pub fn insert(&mut self,con: Contact,id: NodeID, mut index: usize, mut chunk: usize) {
+    pub fn insert(&mut self,my_address: &str,con: Contact,validator: &NodeValidator, mut index: usize, mut chunk: usize) {
         if self.bucket.is_some() {
             if self.bucket.as_ref().unwrap().is_full() {
                 //checking the range of the node  [87,234,234,]
                 let con_byte = con.uid.as_bytes()[chunk];
-                let byte = id.as_bytes()[chunk];
+                let byte = validator.get_nodeid().as_bytes()[chunk];
                 let bits = BinaryString::from(con_byte ^ byte);
                 match bits.0.chars().nth(index) {
                     Some('1') => {
                         //don't split buckets into buckets
-                        self.bucket.as_mut().unwrap().insert_full(id,Box::new(con));
+                        self.bucket.as_mut().unwrap().insert_full(my_address,validator,Box::new(con));
                         return;
                     },
                     Some('0') => {
-                        let (b1,mut b0) = self.bucket.as_mut().unwrap().split(id,index,chunk);
+                        let (b1,mut b0) = self.bucket.as_mut().unwrap().split(validator.get_nodeid(),index,chunk);
                         b0.insert(Box::new(con));
                         let mut outrange = Node::new();
                         let mut inrange = Node::new();
@@ -251,7 +254,7 @@ impl Node {
          match bits.0.chars().nth(index) {
              Some('0') =>{
                  if let Some(node) = self.left.as_mut() {
-                    node.insert(con,id,index+1,chunk)
+                    node.insert(my_address,con,validator,index+1,chunk)
                 } else {
                     let mut node = Node::new();
                     let mut b = Bucket::new();
@@ -262,7 +265,7 @@ impl Node {
              },
              Some('1') => { 
                 if let Some(node) = self.right.as_mut() {
-                    node.insert(con,id,index+1,chunk)
+                    node.insert(my_address,con,validator,index+1,chunk)
                 } else {
                     let mut node = Node::new();
                     let mut b = Bucket::new();

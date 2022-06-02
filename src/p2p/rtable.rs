@@ -1,24 +1,24 @@
+use std::collections::HashSet;
 
-use std::{collections::HashSet, cmp};
-use super::{node::{Node,Bucket, Contact},
-            kad::{KadNode},
-            key::NodeID, K_MAX_ENTRIES,
+use super::{
+    key::{NodeID, NodeValidator},
+    node::{Contact, Node},
+    K_MAX_ENTRIES,
 };
-use to_binary::BinaryString;
 
-#[derive(Debug,Default)]
-pub struct Rtable{pub head: Node}
+#[derive(Debug, Default)]
+pub struct Rtable {
+    pub head: Node,
+}
 
 impl Rtable {
     pub fn new() -> Rtable {
-        Rtable {
-        head : Node::new(),
-        }
+        Rtable { head: Node::new() }
     }
 
     //inserts the contact in the appropriated kbucket.
-    pub fn insert(&mut self, con: Contact, uid: NodeID) {
-        self.head.insert(con,uid,0,0);
+    pub fn insert(&mut self, my_address: &str, con: Contact, validator: &NodeValidator) {
+        self.head.insert(my_address, con, validator, 0, 0);
     }
 
     //returns k closest nodes to the key
@@ -29,11 +29,11 @@ impl Rtable {
         let mut target_id = id.clone();
         let mut visited_buckets = HashSet::new();
         while k_closest.len() <= K_MAX_ENTRIES {
-            let kbucket = self.head.lookup(target_id,index,chunk);
+            let kbucket = self.head.lookup(target_id, index, chunk);
             if let Some(bucket) = kbucket {
-                let mut bucket = bucket.get_sorted(id);       
+                let mut bucket = bucket.get_sorted(id);
                 for contact in bucket.drain(0..) {
-                    if k_closest.contains(&contact){
+                    if k_closest.contains(&contact) {
                         break;
                     }
                     k_closest.push(contact);
@@ -42,11 +42,11 @@ impl Rtable {
                     }
                 }
             }
-            target_id = target_id.set_bitmask(index,chunk);
-            let prefix = target_id.prefix(index,chunk);  
-            
+            target_id = target_id.set_bitmask(index, chunk);
+            let prefix = target_id.prefix(index, chunk);
+
             if visited_buckets.contains(&prefix) {
-              break;
+                break;
             }
 
             visited_buckets.insert(prefix);
@@ -54,5 +54,5 @@ impl Rtable {
             chunk = 0;
         }
         k_closest
-    } 
+    }
 }
