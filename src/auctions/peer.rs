@@ -1,6 +1,6 @@
 use crate::p2p::kad::KadNode;
-use std::collections::{HashMap};
 use crate::p2p::key::NodeID;
+use std::collections::HashMap;
 
 use super::auction::Auction;
 

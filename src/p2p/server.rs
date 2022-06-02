@@ -4,13 +4,12 @@ use tonic::transport::Server;
 
 use super::{kad::KadNode, protocol};
 
-
 pub async fn server(addr: SocketAddr, node: Arc<KadNode>) {
-   /* 
-   // kadn.print_rtable();
-    let key = key::Key::new("25".to_owned() + &"1616".to_owned());
-    println!("{:?}", kadn.lookup(key));
-    */
+    /*
+    // kadn.print_rtable();
+     let key = key::Key::new("25".to_owned() + &"1616".to_owned());
+     println!("{:?}", kadn.lookup(key));
+     */
     //let ip = buffer.split(':').collect();
     let protocol = protocol::KademliaProtocol::new(node);
 
@@ -22,5 +21,7 @@ pub async fn server(addr: SocketAddr, node: Arc<KadNode>) {
 
     Server::builder()
         .add_service(svc)
-        .serve(addr).await.unwrap();
+        .serve(addr)
+        .await
+        .unwrap();
 }

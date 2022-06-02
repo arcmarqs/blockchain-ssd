@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc, Duration};
+use chrono::{DateTime, Duration, Utc};
 
 use crate::p2p::key::NodeID;
 

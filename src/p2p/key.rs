@@ -6,14 +6,14 @@ use rand::Rng;
 
 use super::{C1, C2};
 
-
+#[derive(Clone)]
 pub struct NodeValidator {
     node_id: NodeID,
     pub_key: Rsa<Public>,
     nonce: u64,
     priv_key: Rsa<Private>,
 }
-
+    
 impl NodeValidator {
     /* Generates a random id to use as the kademlia ID */
     pub fn new() -> NodeValidator {

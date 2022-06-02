@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use futures::executor;
 use to_binary::BinaryString;
 
-use super::{key::{NodeID, NodeValidator}, K_MAX_ENTRIES, util::send_ping, kademlia::Kcontact};
+use super::{key::{NodeID, NodeValidator}, K_MAX_ENTRIES, kademlia::Kcontact, client::send_ping};
 
 
 
