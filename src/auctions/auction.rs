@@ -12,16 +12,26 @@ enum AuctionState {
 
 #[derive(Debug,Clone)]
 pub struct Auction {
-    //topic is a common identifier for all auctions, it's used to have all peers subscribe to all avaliable auctions
-    topic: String,
     auction_id: H256,
     state: AuctionState,
     info: AuctionInfo,
-    timestamp: i64,
 }
 
 impl Auction {
+    pub fn new( title: String, seller: NodeID,duration : i64, initial_value: f32)  -> Auction {
+        let starting_time = DateTime::from(Utc::now());
+        let info = AuctionInfo::new(title,seller,starting_time,initial_value,duration);
+        let auction_id = gen_auction_id(&title,seller,starting_time);
+        Auction {
+            auction_id,
+            state: AuctionState::ONGOING,
+            info
+        }
+    }
 
+    pub fn bid(&mut self, bid_amout: f32, bidder: NodeID) -> Result<(),&str> {
+        self.info.bid(bid_amout, bidder)
+    } 
 }
 #[derive(Debug,Clone)]
 pub struct AuctionInfo {
@@ -35,9 +45,7 @@ pub struct AuctionInfo {
 }
 
 impl AuctionInfo {
-    pub fn new(title: String, seller: NodeID, initial_price: f32, time: i64)-> AuctionInfo {
-        let starting_time = DateTime::from(Utc::now());
-        let auction_id = gen_auction_id(&title,seller,starting_time);
+    pub fn new(title: String, seller: NodeID,starting_time: DateTime<Utc>, initial_price: f32, time: i64)-> AuctionInfo {
         AuctionInfo{
             title,
             seller,
@@ -60,24 +68,13 @@ impl AuctionInfo {
     pub fn get_initial_price(&self) -> f32 {
         self.initial_price
     }
-    pub fn get_current_price(&self) -> f32 {
-        self.current_price
-    }
 
-    pub fn get_highest_price(&self) -> Option<NodeID> {
+    pub fn get_highest_bidder(&self) -> Option<NodeID> {
         self.highest_bidder
     }
 
     pub fn get_starting_time(&self) -> DateTime<Utc> {
         self.starting_time
-    }
-
-    pub fn get_time_remaining(&self) -> Duration {
-        self.time_remaining
-    }
-
-    pub fn set_current_price(&mut self, x: f32) { 
-        self.current_price = x;
     }
 
     pub fn bid(&mut self, bid_amout: f32, bidder: NodeID) -> Result<(),&str> {

@@ -85,6 +85,10 @@ impl Client {
         }
     }
 
+    pub fn get_uid(&self) -> NodeID {
+        self.node.get_uid()
+    }
+
     pub async fn send_fnode(&self, key: NodeID) -> Vec<Contact> {
         let my_closest = self.node.lookup(key);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();

@@ -8,6 +8,7 @@ use super::{
 pub struct Signer {}
 
 impl Signer {
+    
     pub fn sign_strong_header_req(timestamp: i64, pub_key: &[u8], address: &str, data: Vec<u8>) -> (Vec<u8>,Vec<u8>) {
         let mut hasher = Sha256::new();
         hasher.update(&timestamp.to_be_bytes());
