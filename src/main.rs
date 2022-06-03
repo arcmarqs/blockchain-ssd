@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //  let port = ip[1].to_string().parse::<u16>().unwrap();
     let address: String = args[1].split('\n').collect();    
     let is_bootstrap: String = args[2].split('\n').collect();
-    println!("address: {:?}", address);
+    println!("address: {:?} {:?}", address, is_bootstrap);
     let node = Arc::new(KadNode::new(address.clone()));
     let cl = Client::new(node.clone());
     let svnode = node.clone();
@@ -33,11 +33,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       server::server(addr, svnode).await 
     });
     
-    if is_bootstrap != "bootstrap" {
+    if is_bootstrap != "bootstrap".to_owned() {
+      println!("bootstrapping");
       let _ = cl.bootstrap().await;
     }
+  
     let ping = send_ping(&address, node.get_validator(), node.as_contact()).await;
-     println!("{:?}",ping);
+    println!("{:?}",ping);
     //let res = cl.send_fnode(node.uid).await;
    // println!("closest {:?}", res);
 
