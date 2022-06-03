@@ -12,6 +12,19 @@ enum AuctionState {
 
 #[derive(Debug,Clone)]
 pub struct Auction {
+    //topic is a common identifier for all auctions, it's used to have all peers subscribe to all avaliable auctions
+    topic: String,
+    auction_id: H256,
+    state: AuctionState,
+    info: AuctionInfo,
+    timestamp: i64,
+}
+
+impl Auction {
+
+}
+#[derive(Debug,Clone)]
+pub struct AuctionInfo {
     title: String,
     seller: NodeID,
     initial_price: f32,
@@ -19,15 +32,13 @@ pub struct Auction {
     highest_bidder: Option<NodeID>,
     starting_time: DateTime<Utc>,
     time_remaining: Duration,
-    state: AuctionState,
-    auction_id: H256,
 }
 
-impl Auction{
-    pub fn new(title: String, seller: NodeID, initial_price: f32, time: i64)-> Auction {
+impl AuctionInfo {
+    pub fn new(title: String, seller: NodeID, initial_price: f32, time: i64)-> AuctionInfo {
         let starting_time = DateTime::from(Utc::now());
         let auction_id = gen_auction_id(&title,seller,starting_time);
-        Auction{
+        AuctionInfo{
             title,
             seller,
             initial_price,
@@ -35,8 +46,6 @@ impl Auction{
             highest_bidder : None,
             starting_time,
             time_remaining: Duration::hours(time),
-            state: AuctionState::ONGOING,
-            auction_id,
         }
     }
 
@@ -65,10 +74,6 @@ impl Auction{
 
     pub fn get_time_remaining(&self) -> Duration {
         self.time_remaining
-    }
-    
-    pub fn get_auction_id(&self) -> H256 {
-        self.auction_id
     }
 
     pub fn set_current_price(&mut self, x: f32) { 

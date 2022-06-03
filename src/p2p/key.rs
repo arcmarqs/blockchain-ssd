@@ -138,7 +138,7 @@ pub fn verify_puzzle(node_id: NodeID, nonce: u64) -> bool {
 fn get_keypair() -> (H256,Vec<u8>,Vec<u8>) {
     let pub_location = "config/pub_key";
     let priv_location = "config/priv_key";
-    match (File::open(&pub_location),File::open(&priv_location)) {
+    match (File::open(pub_location),File::open(priv_location)) {
         (Ok(fpub),Ok(fpriv)) => {
             let mut hasher = Sha256::new();
             let mut pubreader = BufReader::new(fpub);
@@ -151,7 +151,7 @@ fn get_keypair() -> (H256,Vec<u8>,Vec<u8>) {
             let id_key = hasher.finish();
             hasher = Sha256::new();
             hasher.update(&id_key);
-            if leading_zeros(&hasher.finish()) >= C1 {
+            if leading_zeros(&hasher.finish()) < C1 {
                 //if the node id doesn't solve the static puzzle we create a new pair
                 return gen_keypair(pub_location,priv_location);
             }

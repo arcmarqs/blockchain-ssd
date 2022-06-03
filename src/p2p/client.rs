@@ -113,7 +113,7 @@ impl Client {
             let address = format_address(contact.address.clone());
             let mut client = KademliaClient::connect(address.clone()).await.unwrap();  
             let timestamp = Utc::now().timestamp();
-            let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,&contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
+            let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
             let request = FValueReq {
                 cookie: gen_cookie(),
                 header: Some( Header {
@@ -152,7 +152,7 @@ impl Client {
         let address = format_address(contact.address.clone());
         let mut client = KademliaClient::connect(address.clone()).await.unwrap();  
         let timestamp = Utc::now().timestamp();
-        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,&contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
+        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
         let request = StoreReq {
                 cookie: gen_cookie(),
                 header: Some( Header {
@@ -204,7 +204,7 @@ async fn a_lookup(key: NodeID, info: Arc<FNodeManager>) {
          match remote {
              Ok(mut remote) => {
                 let timestamp = Utc::now().timestamp();
-                let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,&info.get_pubkey(),&info.address);
+                let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,node.get_pubkey(),&info.address);
                 let request = FNodeReq {
                     cookie: gen_cookie(),
                     header: Some( Header {
@@ -311,7 +311,7 @@ pub async fn send_ping(my_address: &str,validator: &NodeValidator, contact: Cont
     let address = format_address(contact.address.clone());
     if let Ok(mut client) = KademliaClient::connect(address.clone()).await{  
     let timestamp = Utc::now().timestamp();
-    let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,&validator.get_pubkey(),my_address);
+    let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,contact.get_pubkey(),my_address);
     let request = PingM {
             cookie: gen_cookie(),
             header: Some( Header {

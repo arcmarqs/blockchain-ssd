@@ -6,6 +6,7 @@ use super::{
 };
 
 pub struct Signer {}
+
 impl Signer {
     pub fn sign_strong_header_req(timestamp: i64, pub_key: &[u8], address: &str, data: Vec<u8>) -> (Vec<u8>,Vec<u8>) {
         let mut hasher = Sha256::new();
@@ -46,11 +47,11 @@ impl Signer {
     pub fn validate_weak_req(validator: &NodeValidator,header: &Header, address: &str) -> Result<Vec<u8>, &'static str> {
         let node_id = NodeID::from_vec(header.my_id.clone());
         let nonce = header.nonce;
-        let mut signature = validator.decrypt(&header.signature);
-        signature.truncate(32);
-        let timestamp = header.timestamp;
 
         if verify_puzzle(node_id, nonce) {
+            let mut signature = validator.decrypt(&header.signature);
+            signature.truncate(32);
+            let timestamp = header.timestamp;
             println!("HASHER GOES OMNOMNOM ON: {:?} {:?}",  timestamp, address);
             let mut hasher = Sha256::new();
             hasher.update(&timestamp.to_be_bytes());
@@ -68,11 +69,11 @@ impl Signer {
     pub fn validate_weak_rep(validator: &NodeValidator, header: &Header, address: &str,req_signature: &[u8]) -> Result<(), &'static str> {
         let node_id = NodeID::from_vec(header.my_id.clone());
         let nonce = header.nonce;
-        let mut signature = validator.decrypt(&header.signature);
-        signature.truncate(32);
-        let timestamp = header.timestamp;
 
         if verify_puzzle(node_id, nonce) {
+            let mut signature = validator.decrypt(&header.signature);
+            signature.truncate(32);
+            let timestamp = header.timestamp;
             let mut hasher = Sha256::new();
             hasher.update(&timestamp.to_be_bytes());
             hasher.update(address.as_bytes());
@@ -89,11 +90,11 @@ impl Signer {
     pub fn validate_strong_rep(validator: &NodeValidator,header: &Header,address: &str,data: &[u8],req_signature: &[u8]) -> Result<(), &'static str> {
         let node_id = NodeID::from_vec(header.my_id.clone());
         let nonce = header.nonce;
-        let mut signature = validator.decrypt(&header.signature);
-        signature.truncate(32);
-        let timestamp = header.timestamp;
 
         if verify_puzzle(node_id, nonce) {
+            let mut signature = validator.decrypt(&header.signature);
+            signature.truncate(32);
+            let timestamp = header.timestamp;
             let mut hasher = Sha256::new();
             hasher.update(&timestamp.to_be_bytes());
             hasher.update(address.as_bytes());
@@ -111,11 +112,11 @@ impl Signer {
     pub fn validate_strong_req(validator: &NodeValidator, header: &Header, address: &str, data: &[u8]) -> Result<Vec<u8>, &'static str> {
         let node_id = NodeID::from_vec(header.my_id.clone());
         let nonce = header.nonce;
-        let mut signature = validator.decrypt(&header.signature);
-        signature.truncate(32);
-        let timestamp = header.timestamp;
-
+      
         if verify_puzzle(node_id, nonce) {
+            let mut signature = validator.decrypt(&header.signature);
+            signature.truncate(32);
+            let timestamp = header.timestamp;
             let mut hasher = Sha256::new();
             hasher.update(&timestamp.to_be_bytes());
             hasher.update(address.as_bytes());

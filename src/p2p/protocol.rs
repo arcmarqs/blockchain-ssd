@@ -147,7 +147,7 @@ impl Kademlia for KademliaProtocol {
         let req = request.into_inner();
         let header = req.header.unwrap();
         let key_bytes = req.target_id;
-        if let Ok(req_hash) = Signer::validate_strong_req(self.node.get_validator(),&header,&remote_addr.to_string(),&key_bytes) {
+        if let Ok(req_hash) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
             let lookup_key = NodeID::from_vec(key_bytes);
             let k = Kclosest {
                 node : self.lookup(lookup_key),
