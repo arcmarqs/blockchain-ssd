@@ -15,24 +15,22 @@ use super::{
 
 const PARALLEL_LOOKUPS: i32 = 3;
 
-static BOOTSTRAP_KEY: &'static [u8] = &[45, 45, 45, 45, 45, 66, 69, 71, 73, 78, 32, 80, 85, 66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 45, 45, 45, 10, 77, 73, 73, 66, 73, 
-                                        106, 65, 78, 66, 103, 107, 113, 104, 107, 105, 71, 57, 119, 48, 66, 65, 81, 69, 70, 65, 65, 79, 67, 65, 81, 56, 65, 77, 73, 73, 
-                                        66, 67, 103, 75, 67, 65, 81, 69, 65, 48, 104, 108, 67, 67, 72, 97, 90, 103, 82, 122, 78, 72, 98, 107, 88, 67, 56, 57, 114, 10,
-                                        97, 67, 51, 71, 112, 89, 78, 101, 118, 86, 54, 100, 54, 48, 115, 53, 104, 108, 90, 72, 70, 98, 107, 72, 106, 108, 66, 106, 113, 
-                                        72, 65, 109, 56, 84, 97, 115, 73, 110, 97, 80, 109, 75, 98, 52, 90, 54, 112, 116, 86, 71, 107, 108, 97, 74, 121, 68, 99, 56,
-                                        76, 118, 83, 102, 107, 89, 10, 113, 75, 99, 70, 110, 83, 113, 102, 110, 74, 107, 48, 79, 112, 102, 80, 75, 52, 107, 68, 89, 72, 
-                                        98, 97, 54, 74, 55, 79, 73, 48, 104, 119, 49, 105, 79, 74, 99, 51, 89, 113, 71, 67, 79, 112, 80, 100, 53, 49, 84, 74, 109, 65,
-                                        103, 118, 67, 120, 120, 87, 102, 69, 72, 55, 104, 114, 10, 78, 118, 82, 51, 68, 87, 112, 55, 82, 120, 89, 119, 56, 84, 87, 80, 
-                                        70, 105, 52, 103, 108, 76, 117, 68, 112, 105, 76, 106, 111, 109, 51, 78, 98, 99, 99, 76, 87, 66, 85, 87, 50, 53, 97, 111, 103, 
-                                        53, 80, 67, 76, 118, 106, 70, 105, 98, 112, 68, 118, 79, 81, 69, 120, 109, 102, 109, 10, 69, 68, 55, 84, 108, 51, 47, 112, 104,
-                                        74, 65, 115, 83, 66, 69, 76, 74, 47, 99, 82, 53, 88, 75, 71, 106, 98, 71, 83, 115, 120, 53, 53, 114, 109, 50, 82, 74, 55, 102,
-                                        73, 43, 55, 122, 68, 83, 107, 52, 113, 108, 90, 47, 83, 78, 120, 73, 78, 53, 86, 121, 107, 116, 52, 117, 57, 10, 65, 77, 68, 99, 
-                                        102, 107, 106, 99, 73, 120, 100, 116, 50, 69, 69, 43, 97, 86, 51, 80, 114, 113, 118, 57, 78, 79, 50, 73, 81, 104, 67, 110, 89, 
-                                        112, 55, 43, 71, 79, 121, 50, 81, 55, 112, 107, 66, 106, 47, 56, 104, 67, 103, 65, 90, 87, 102, 51, 55, 69, 74, 112, 54, 53, 73, 
-                                        111, 10, 108, 119, 73, 68, 65, 81, 65, 66, 10, 45, 45, 45, 45, 45, 69, 78, 68, 32, 80, 85, 66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 
-                                        45, 45, 45, 10];
+static BOOTSTRAP_KEY: &'static [u8] = &[45, 45, 45, 45, 45, 66, 69, 71, 73, 78, 32, 80, 85, 66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 45, 45, 45, 10, 77, 73, 73, 66, 73, 106, 65, 78, 
+                                        66, 103, 107, 113, 104, 107, 105, 71, 57, 119, 48, 66, 65, 81, 69, 70, 65, 65, 79, 67, 65, 81, 56, 65, 77, 73, 73, 66, 67, 103, 75, 67, 65, 
+                                        81, 69, 65, 113, 65, 101, 79, 85, 75, 81, 102, 73, 70, 70, 107, 109, 53, 112, 120, 79, 110, 110, 86, 10, 66, 110, 48, 97, 103, 114, 70, 97, 
+                                        103, 122, 99, 118, 83, 113, 106, 78, 85, 81, 97, 99, 108, 67, 118, 47, 74, 71, 76, 122, 106, 105, 52, 118, 72, 69, 77, 81, 119, 52, 51, 47, 
+                                        116, 83, 69, 79, 104, 83, 121, 81, 43, 86, 75, 88, 114, 68, 107, 116, 73, 86, 43, 120, 49, 122, 79, 76, 10, 111, 67, 101, 77, 78, 101, 114, 
+                                        51, 111, 53, 121, 71, 87, 117, 89, 52, 98, 80, 70, 117, 56, 48, 105, 80, 114, 98, 54, 109, 79, 114, 47, 110, 43, 74, 115, 121, 97, 114, 67, 
+                                        111, 101, 50, 74, 122, 85, 78, 71, 111, 82, 81, 105, 71, 119, 71, 70, 115, 79, 84, 73, 118, 114, 121, 88, 108, 10, 78, 71, 65, 109, 86, 112, 
+                                        57, 121, 74, 76, 110, 70, 100, 121, 114, 113, 105, 77, 89, 50, 77, 113, 102, 98, 76, 74, 50, 116, 55, 56, 52, 84, 118, 119, 116, 65, 88, 77, 
+                                        47, 83, 117, 47, 78, 118, 53, 114, 117, 50, 110, 114, 48, 82, 118, 109, 100, 102, 47, 109, 105, 56, 66, 50, 102, 53, 10, 65, 77, 52, 73, 98, 
+                                        72, 113, 113, 122, 89, 103, 84, 48, 102, 104, 107, 50, 70, 86, 122, 76, 113, 70, 68, 48, 79, 88, 89, 54, 83, 89, 115, 81, 101, 75, 75, 117, 
+                                        71, 49, 115, 108, 84, 80, 66, 110, 76, 90, 99, 87, 87, 116, 115, 56, 86, 118, 105, 50, 98, 70, 43, 116, 78, 75, 86, 10, 43, 65, 50, 68, 54, 
+                                        117, 51, 48, 113, 65, 52, 47, 110, 47, 87, 120, 117, 69, 51, 69, 68, 43, 68, 74, 81, 56, 115, 82, 76, 89, 57, 73, 82, 90, 111, 104, 87, 110, 
+                                        98, 77, 49, 68, 90, 82, 73, 114, 79, 110, 82, 55, 50, 119, 70, 100, 113, 117, 87, 100, 101, 120, 57, 57, 90, 98, 10, 84, 81, 73, 68, 65, 81, 
+                                        65, 66, 10, 45, 45, 45, 45, 45, 69, 78, 68, 32, 80, 85, 66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 45, 45, 45, 10];
                                 
-static BOOT_ID : &'static [u8] = &[245, 83, 36, 87, 32, 76, 92, 218, 215, 197, 141, 139, 118, 64, 71, 198, 83, 109, 36, 28, 81, 38, 245, 179, 55, 172, 28, 49, 226, 8, 22, 84];
+static BOOT_ID : &'static [u8] = &[128, 50, 160, 82, 60, 70, 232, 187, 174, 50, 44, 166, 190, 12, 230, 223, 97, 136, 241, 43, 218, 167, 192, 76, 236, 149, 99, 30, 62, 112, 182, 190];
 static BOOTSTRAP_IP : &str = "10.128.0.3:30030";
 
 
@@ -143,7 +141,7 @@ impl Client {
             let address = format_address(contact.address.clone());
             let mut client = KademliaClient::connect(address.clone()).await.unwrap();  
             let timestamp = Utc::now().timestamp();
-            let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,&contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
+            let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
             let request = FValueReq {
                 cookie: gen_cookie(),
                 header: Some( Header {
@@ -183,7 +181,7 @@ impl Client {
         let address = format_address(contact.address.clone());
         let mut client = KademliaClient::connect(address.clone()).await.unwrap();  
         let timestamp = Utc::now().timestamp();
-        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,&contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
+        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
         let request = StoreReq {
                 cookie: gen_cookie(),
                 header: Some( Header {
@@ -236,7 +234,7 @@ async fn a_lookup(key: NodeID, info: Arc<FNodeManager>) {
          match remote {
              Ok(mut remote) => {
                 let timestamp = Utc::now().timestamp();
-                let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,&info.get_pubkey(),&info.address);
+                let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,node.get_pubkey(),&info.address);
                 let request = FNodeReq {
                     cookie: gen_cookie(),
                     header: Some( Header {
@@ -344,7 +342,7 @@ pub async fn send_ping(my_address: &str,validator: &NodeValidator, contact: Cont
     let address = format_address(contact.address.clone());
     if let Ok(mut client) = KademliaClient::connect(address.clone()).await{  
     let timestamp = Utc::now().timestamp();
-    let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,&validator.get_pubkey(),my_address);
+    let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,contact.get_pubkey(),my_address);
     let request = PingM {
             cookie: gen_cookie(),
             header: Some( Header {
