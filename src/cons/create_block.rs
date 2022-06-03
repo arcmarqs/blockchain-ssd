@@ -4,7 +4,7 @@ use rand::Rng;
 
 
 
-pub fn proof_of_work(previous_hash: Vec<u8>, auction_id: u64) {
+pub fn proof_of_work(previous_hash: Vec<u8>, auction_id: u64) -> (u64, Vec<8>) {
     let mut nonce_ex: u64;
 
     // Hash of our new block
@@ -22,13 +22,11 @@ pub fn proof_of_work(previous_hash: Vec<u8>, auction_id: u64) {
         hasher.update(&nonce_bytes);
 
         if leading_zeros(&hasher.finish()) == 8 {
-            return true;
-            //println!("ACERTOU");
-            //retornar a hash e a nonce 
+
 
             }
         }
-        
+        nonce_ex, hasher
     } 
 
 
