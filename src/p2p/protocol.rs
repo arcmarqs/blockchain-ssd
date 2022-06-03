@@ -43,8 +43,8 @@ impl KademliaProtocol {
         k_closest
     }
 
-    fn insert_update(&self,id: Vec<u8>,pub_key: &[u8], remote_addr: SocketAddr) {
-        let con = Contact::new(NodeID::from_vec(id), remote_addr.to_string(), pub_key.to_vec());
+    fn insert_update(&self,id: Vec<u8>,pub_key: &[u8], remote_addr: String) {
+        let con = Contact::new(NodeID::from_vec(id), remote_addr, pub_key.to_vec());
         self.node.insert(con);
     }
 }
@@ -61,12 +61,13 @@ impl Kademlia for KademliaProtocol {
         let header = req.header.unwrap();
         
         if let Ok(req_hash) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
-            self.insert_update(header.my_id,&header.pub_key,remote_addr);
+            self.insert_update(header.my_id,&header.pub_key,header.address);
             let timestamp = Utc::now().timestamp();
             let reply = PingM {
                 cookie: req.cookie,
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
+                    address : self.node.address.to_owned(),
                     pub_key: self.node.get_pubkey(),
                     nonce: self.node.get_nonce(),
                     timestamp,
@@ -86,13 +87,14 @@ impl Kademlia for KademliaProtocol {
         let key_bytes = req.target_id;
         if let Ok(req_hash) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
             let key = NodeID::from_vec(key_bytes);
-            self.insert_update(header.my_id,&header.pub_key,remote_addr);
+            self.insert_update(header.my_id,&header.pub_key,header.address);
             self.node.store_value(key, req.value);
             let timestamp = Utc::now().timestamp();
             let reply = StoreRepl {
                 cookie: req.cookie,
                 header: Some( Header { 
                     my_id: self.node.uid.as_bytes().to_owned(),
+                    address : self.node.address.to_owned(),
                     pub_key: self.node.get_pubkey(),
                     nonce: self.node.get_nonce(),
                     timestamp,
@@ -112,7 +114,7 @@ impl Kademlia for KademliaProtocol {
         let key_bytes = req.target_id;
         let header = req.header.unwrap();
         if let Ok(req_hash) = Signer::validate_strong_req(self.node.get_validator(),&header,&remote_addr.to_string(),&key_bytes) {
-            self.insert_update(header.my_id,&header.pub_key,remote_addr);
+            self.insert_update(header.my_id,&header.pub_key,header.address);
             let lookup_key = NodeID::from_vec(key_bytes);
             let has_value : HasValue;
             match self.node.retrieve(lookup_key) {
@@ -128,6 +130,7 @@ impl Kademlia for KademliaProtocol {
                 cookie: req.cookie,
                 header: Some(Header { 
                     my_id: self.node.uid.as_bytes().to_owned(),
+                    address : self.node.address.to_owned(),
                     pub_key: self.node.get_pubkey(),
                     nonce: self.node.get_nonce(),
                     timestamp,
@@ -152,7 +155,7 @@ impl Kademlia for KademliaProtocol {
             let k = Kclosest {
                 node : self.lookup(lookup_key),
             };
-            self.insert_update(header.my_id,&header.pub_key,remote_addr);
+            self.insert_update(header.my_id,&header.pub_key,header.address);
             let mut databuf = Vec::new();
             let _enc = k.encode(&mut databuf).unwrap();
             let timestamp = Utc::now().timestamp();
@@ -160,6 +163,7 @@ impl Kademlia for KademliaProtocol {
                 cookie: req.cookie,
                 header: Some( Header { 
                     my_id: self.node.uid.as_bytes().to_owned(),
+                    address : self.node.address.to_owned(),
                     pub_key: self.node.get_pubkey(),
                     nonce: self.node.get_nonce(),
                     timestamp,

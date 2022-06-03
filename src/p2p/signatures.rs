@@ -8,9 +8,10 @@ use super::{
 pub struct Signer {}
 impl Signer {
     pub fn sign_strong_header_req(timestamp: i64, pub_key: &[u8], address: &str, data: Vec<u8>) -> (Vec<u8>,Vec<u8>) {
+        let ipaddr: Vec<&str> = address.split(':').collect();
         let mut hasher = Sha256::new();
         hasher.update(&timestamp.to_be_bytes());
-        hasher.update(&address.as_bytes());
+        hasher.update(ipaddr[0].as_bytes());
         hasher.update(&data);
         let signature = hasher.finish().to_vec();
         (signature.clone(),encrypt_message(pub_key, &signature))
@@ -26,10 +27,12 @@ impl Signer {
     }
 
     pub fn sign_weak_header_req(timestamp: i64, pub_key: &[u8], address: &str) -> (Vec<u8>, Vec<u8>) {
-        println!("HASHER GOES OMNOMNOM ON: {:?} {:?}",  timestamp, address);
+        let ipaddr: Vec<&str> = address.split(':').collect();
+        println!("HASHER GOES OMNOMNOM ON: {:?} {:?}",  timestamp, ipaddr[0]);
+
         let mut hasher = Sha256::new();
         hasher.update(&timestamp.to_be_bytes());
-        hasher.update(address.as_bytes());
+        hasher.update(ipaddr[0].as_bytes());
         let signature = hasher.finish().to_vec();
         (signature.clone(),encrypt_message(pub_key, &signature))
     }
@@ -51,10 +54,11 @@ impl Signer {
         let timestamp = header.timestamp;
 
         if verify_puzzle(node_id, nonce) {
-            println!("HASHER GOES OMNOMNOM ON: {:?} {:?}",  timestamp, address);
+            let ipaddr: Vec<&str> = address.split(':').collect();
+            println!("HASHER GOES OMNOMNOM ON: {:?} {:?}",  timestamp, ipaddr[0]);
             let mut hasher = Sha256::new();
             hasher.update(&timestamp.to_be_bytes());
-            hasher.update(address.as_bytes());
+            hasher.update(ipaddr[0].as_bytes());
             let sign = hasher.finish().to_vec();
             if signature == sign {
                 println!("inside");
@@ -116,9 +120,10 @@ impl Signer {
         let timestamp = header.timestamp;
 
         if verify_puzzle(node_id, nonce) {
+            let ipaddr: Vec<&str> = address.split(':').collect();
             let mut hasher = Sha256::new();
             hasher.update(&timestamp.to_be_bytes());
-            hasher.update(address.as_bytes());
+            hasher.update(ipaddr[0].as_bytes());
             hasher.update(data);
 
             let sign = hasher.finish().to_vec();

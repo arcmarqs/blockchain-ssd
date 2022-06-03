@@ -114,7 +114,7 @@ fn solve_puzzle(node_id: NodeID) -> u64 {
         let mut hasher = Sha256::new();
         nonce = rng.gen();
         let nonce_bytes = nonce.clone().to_be_bytes();
-        hasher.update(&node_id.as_bytes());
+        hasher.update(node_id.as_bytes());
         hasher.update(&nonce_bytes);
 
         if leading_zeros(&hasher.finish()) >= C2 {

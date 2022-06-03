@@ -15,6 +15,26 @@ use super::{
 
 const PARALLEL_LOOKUPS: i32 = 3;
 
+static BOOTSTRAP_KEY: &'static [u8] = &[45, 45, 45, 45, 45, 66, 69, 71, 73, 78, 32, 80, 85, 66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 45, 45, 45, 10, 77, 73, 73, 66, 73, 
+                                        106, 65, 78, 66, 103, 107, 113, 104, 107, 105, 71, 57, 119, 48, 66, 65, 81, 69, 70, 65, 65, 79, 67, 65, 81, 56, 65, 77, 73, 73, 
+                                        66, 67, 103, 75, 67, 65, 81, 69, 65, 48, 104, 108, 67, 67, 72, 97, 90, 103, 82, 122, 78, 72, 98, 107, 88, 67, 56, 57, 114, 10,
+                                        97, 67, 51, 71, 112, 89, 78, 101, 118, 86, 54, 100, 54, 48, 115, 53, 104, 108, 90, 72, 70, 98, 107, 72, 106, 108, 66, 106, 113, 
+                                        72, 65, 109, 56, 84, 97, 115, 73, 110, 97, 80, 109, 75, 98, 52, 90, 54, 112, 116, 86, 71, 107, 108, 97, 74, 121, 68, 99, 56,
+                                        76, 118, 83, 102, 107, 89, 10, 113, 75, 99, 70, 110, 83, 113, 102, 110, 74, 107, 48, 79, 112, 102, 80, 75, 52, 107, 68, 89, 72, 
+                                        98, 97, 54, 74, 55, 79, 73, 48, 104, 119, 49, 105, 79, 74, 99, 51, 89, 113, 71, 67, 79, 112, 80, 100, 53, 49, 84, 74, 109, 65,
+                                        103, 118, 67, 120, 120, 87, 102, 69, 72, 55, 104, 114, 10, 78, 118, 82, 51, 68, 87, 112, 55, 82, 120, 89, 119, 56, 84, 87, 80, 
+                                        70, 105, 52, 103, 108, 76, 117, 68, 112, 105, 76, 106, 111, 109, 51, 78, 98, 99, 99, 76, 87, 66, 85, 87, 50, 53, 97, 111, 103, 
+                                        53, 80, 67, 76, 118, 106, 70, 105, 98, 112, 68, 118, 79, 81, 69, 120, 109, 102, 109, 10, 69, 68, 55, 84, 108, 51, 47, 112, 104,
+                                        74, 65, 115, 83, 66, 69, 76, 74, 47, 99, 82, 53, 88, 75, 71, 106, 98, 71, 83, 115, 120, 53, 53, 114, 109, 50, 82, 74, 55, 102,
+                                        73, 43, 55, 122, 68, 83, 107, 52, 113, 108, 90, 47, 83, 78, 120, 73, 78, 53, 86, 121, 107, 116, 52, 117, 57, 10, 65, 77, 68, 99, 
+                                        102, 107, 106, 99, 73, 120, 100, 116, 50, 69, 69, 43, 97, 86, 51, 80, 114, 113, 118, 57, 78, 79, 50, 73, 81, 104, 67, 110, 89, 
+                                        112, 55, 43, 71, 79, 121, 50, 81, 55, 112, 107, 66, 106, 47, 56, 104, 67, 103, 65, 90, 87, 102, 51, 55, 69, 74, 112, 54, 53, 73, 
+                                        111, 10, 108, 119, 73, 68, 65, 81, 65, 66, 10, 45, 45, 45, 45, 45, 69, 78, 68, 32, 80, 85, 66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 
+                                        45, 45, 45, 10];
+                                
+static BOOT_ID : &'static [u8] = &[245, 83, 36, 87, 32, 76, 92, 218, 215, 197, 141, 139, 118, 64, 71, 198, 83, 109, 36, 28, 81, 38, 245, 179, 55, 172, 28, 49, 226, 8, 22, 84];
+static BOOTSTRAP_IP : &str = "10.128.0.3:30030";
+
 
 #[derive(Debug,Clone)]
 struct FNodeManager {
@@ -85,6 +105,16 @@ impl Client {
         }
     }
 
+    pub async fn bootstrap(&self) -> Result<(), &str> {
+        self.node.insert(Contact::new(NodeID::from_vec(BOOT_ID.to_vec()), BOOTSTRAP_IP.to_owned(), BOOTSTRAP_KEY.to_vec()));
+        let k_closest = self.send_fnode(self.node.uid).await;
+        for node in k_closest {
+            self.node.insert(node);
+        }
+        self.node.print_rtable();
+        Ok(())
+    }
+
     pub async fn send_fnode(&self, key: NodeID) -> Vec<Contact> {
         let my_closest = self.node.lookup(key);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
@@ -118,6 +148,7 @@ impl Client {
                 cookie: gen_cookie(),
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
+                    address : self.node.address.to_owned(),
                     pub_key: self.node.get_pubkey(),
                     nonce: self.node.get_nonce(),
                     timestamp,
@@ -157,6 +188,7 @@ impl Client {
                 cookie: gen_cookie(),
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
+                    address : self.node.address.to_owned(),
                     pub_key: self.node.get_pubkey(),
                     nonce: self.node.get_nonce(),
                     timestamp,
@@ -209,6 +241,7 @@ async fn a_lookup(key: NodeID, info: Arc<FNodeManager>) {
                     cookie: gen_cookie(),
                     header: Some( Header {
                         my_id: info.get_uid(),
+                        address : info.address.to_owned(),
                         pub_key: info.get_pubkey(),
                         nonce: info.get_nonce(),
                         timestamp,
@@ -316,6 +349,7 @@ pub async fn send_ping(my_address: &str,validator: &NodeValidator, contact: Cont
             cookie: gen_cookie(),
             header: Some( Header {
                 my_id: validator.get_nodeid().as_bytes().to_owned(),
+                address : my_address.to_owned(),
                 pub_key: validator.get_pubkey(),
                 nonce: validator.get_nonce(),
                 timestamp: timestamp,
