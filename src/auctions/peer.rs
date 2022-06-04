@@ -26,6 +26,7 @@ impl AuctionPeer{
     pub fn new_auction(&mut self, title: String, duration : i64, initial_value: f32) {
         let auction = Auction::new(title,self.client.get_uid(), duration, initial_value);
         let auction_subscribers: Vec<NodeID> = Vec::new();
+        let _ = self.client.annouce_auction(auction.to_gossip());
         self.my_auctions.insert(auction,auction_subscribers);
     }
 

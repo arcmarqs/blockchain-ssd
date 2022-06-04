@@ -10,46 +10,39 @@ service Kademlia {
 }
 
 message PingM {
-    string cookie = 1; // "Magic cookie" used to track this exact ping request
     header header = 2;
 }
 
 message StoreReq {
-    string cookie = 1;
     header header = 2;
     bytes target_id = 3;
-    string value = 4;
+    auction_data value = 4;
 }
 
 message StoreRepl {
-    string cookie = 1;
     header header = 2;
 }
 
 message FNodeReq {
-    string cookie = 1;
     header header = 2;
     bytes target_id = 3;
 }
 
 message FNodeRepl {
-    string cookie = 1;
     header header = 2;
     kclosest nodes = 3;
 }
 
 message FValueReq {
-   string cookie = 1;
    header header = 2;
    bytes target_id = 3;
 }
 
 message FValueRepl {
-    string cookie = 1;
     header header = 2;
     oneof has_value {
         kclosest node = 4;
-        bytes value = 5;
+        auctions auction = 5;
     }
 }
 
@@ -67,6 +60,18 @@ message header {
     string address = 2;
     bytes pub_key = 3;
     uint64 nonce = 4;
-    int64 timestamp = 5;
+    uint64 timestamp = 5;
     bytes signature = 6;
+}
+
+message auctions{
+    repeated auction_data list = 1;
+}
+
+message auction_data{
+    bytes auction_id = 1;
+    string title = 2;
+    bytes seller = 3;
+    float price = 4;
+    bool status = 5;
 }

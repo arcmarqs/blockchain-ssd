@@ -101,6 +101,7 @@ impl NodeID {
                 return vec![0];
             }
         }
+        
         let range = 255 >> (8 - index);
         prefix[chunk] = prefix[chunk] | !range;
         prefix

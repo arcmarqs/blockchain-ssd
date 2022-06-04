@@ -4,6 +4,8 @@ use chrono::Utc;
 use prost::Message;
 use tonic::{Request, Response, Status, Code};
 
+use crate::p2p::util::gen_cookie;
+
 use super::{kad::KadNode, 
     key::NodeID, 
     node::{Contact}, 
@@ -11,8 +13,8 @@ use super::{kad::KadNode,
     kademlia::{
         kademlia_server::{Kademlia, KademliaServer}, 
         PingM, Kcontact, StoreReq, StoreRepl, FValueReq, FValueRepl, 
-        f_value_repl::{HasValue::{Value,Node as HNode}, HasValue},
-        Kclosest, Header, FNodeReq, FNodeRepl}};
+        f_value_repl::{HasValue::{Auction,Node as HNode}, HasValue},
+        Kclosest, Header, FNodeReq, FNodeRepl, Auctions}, util::{to_gossip, to_auction_data_vec, encode_fvalue, encode_store}};
 
 #[derive(Debug,Clone)]
 pub struct KademliaProtocol{
@@ -62,9 +64,8 @@ impl Kademlia for KademliaProtocol {
         
         if let Ok(req_hash) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
             self.insert_update(header.my_id,&header.pub_key,header.address);
-            let timestamp = Utc::now().timestamp();
+            let timestamp = gen_cookie();
             let reply = PingM {
-                cookie: req.cookie,
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
                     address : self.node.address.to_owned(),
@@ -84,14 +85,15 @@ impl Kademlia for KademliaProtocol {
         let remote_addr = request.remote_addr().unwrap();
         let req = request.into_inner();
         let header = req.header.unwrap();
-        let key_bytes = req.target_id;
-        if let Ok(req_hash) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
-            let key = NodeID::from_vec(key_bytes);
+        let key =NodeID::from_vec(req.target_id);
+        let value = req.value.unwrap();
+        let databuf = encode_store(&value,key);
+        if let Ok(req_hash) = Signer::validate_strong_req(self.node.get_validator(),&header,&remote_addr.to_string(),&databuf) {
             self.insert_update(header.my_id,&header.pub_key,header.address);
-            self.node.store_value(key, req.value);
-            let timestamp = Utc::now().timestamp();
+            let value = to_gossip(&value);
+            self.node.store_value(key, value);
+            let timestamp = self.node.compare(header.timestamp);
             let reply = StoreRepl {
-                cookie: req.cookie,
                 header: Some( Header { 
                     my_id: self.node.uid.as_bytes().to_owned(),
                     address : self.node.address.to_owned(),
@@ -118,16 +120,14 @@ impl Kademlia for KademliaProtocol {
             let lookup_key = NodeID::from_vec(key_bytes);
             let has_value : HasValue;
             match self.node.retrieve(lookup_key) {
-                Some(val) => has_value = Value(val.as_bytes().to_owned()),
+                Some(val) => has_value = Auction(Auctions { list: to_auction_data_vec(val)} ),
                 None => has_value = HNode( Kclosest { 
                                             node : self.lookup(lookup_key),
                                     }),
             };
-            let mut databuf = Vec::new();
-            has_value.encode(&mut databuf);
-            let timestamp = Utc::now().timestamp();
+            let databuf = encode_fvalue(&has_value, lookup_key);
+            let timestamp = self.node.compare(header.timestamp);
             let reply = FValueRepl {
-                cookie: req.cookie,
                 header: Some(Header { 
                     my_id: self.node.uid.as_bytes().to_owned(),
                     address : self.node.address.to_owned(),
@@ -158,9 +158,8 @@ impl Kademlia for KademliaProtocol {
             self.insert_update(header.my_id,&header.pub_key,header.address);
             let mut databuf = Vec::new();
             let _enc = k.encode(&mut databuf).unwrap();
-            let timestamp = Utc::now().timestamp();
+            let timestamp = self.node.compare(header.timestamp);
             let reply = FNodeRepl {
-                cookie: req.cookie,
                 header: Some( Header { 
                     my_id: self.node.uid.as_bytes().to_owned(),
                     address : self.node.address.to_owned(),

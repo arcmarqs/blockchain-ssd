@@ -1,7 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{atomic::AtomicU64, Arc}};
 
 use chrono::{DateTime, Utc};
-use parking_lot::RwLock;
+use parking_lot::{RwLock, Mutex};
+use std::sync::atomic::Ordering::{SeqCst,Acquire};
+use crate::auctions::auction::AuctionGossip;
 
 use super::{key::{NodeValidator, NodeID}, rtable::Rtable, node::Contact};
 
@@ -10,10 +12,10 @@ pub struct KadNode {
     pub uid: NodeID,
     pub address: String,
     pub join_date: DateTime<Utc>,
-    timestamp: i64,
+    timestamp: Arc<AtomicU64>,
     validator: NodeValidator,
     rtable: RwLock<Rtable>,
-    data_store: RwLock<HashMap<NodeID,String>>,
+    data_store: RwLock<HashMap<NodeID,Vec<AuctionGossip>>>,
 }
 
 impl KadNode {
@@ -25,7 +27,7 @@ impl KadNode {
             address: addr,
             rtable: RwLock::new(Rtable::new()),
             join_date: date,
-            timestamp: date.timestamp(),
+            timestamp: Arc::new(AtomicU64::new(0)),
             data_store: RwLock::new(HashMap::new()),
             validator : valid,
         }
@@ -51,11 +53,31 @@ impl KadNode {
         println!("{:?}",self.rtable.try_read().unwrap().head);
     }
 
-    pub fn store_value(&self, key: NodeID, value: String) -> Option<String> {
-        self.data_store.write().insert(key, value)
+    pub fn store_value(&self, key: NodeID, value: AuctionGossip) -> Result<(), &'static str> {
+        let mut lock = self.data_store.write();
+
+        match lock.get_mut(&key) {
+            Some(vec) => {
+                let mut id = 0;
+                    for v in vec.clone().iter() {
+                        if v == &value {
+                           vec.remove(id);
+                        }
+                        id +=1;
+                    }
+                    vec.push(value);
+                    Ok(())
+                }
+            None => {
+                match lock.insert(key, vec![value]){
+                    Some(_) => Ok(()),
+                    None => Err("failed to insert key"),
+                }
+            },
+        }
     }
 
-    pub fn retrieve(&self, key: NodeID) -> Option<String> {
+    pub fn retrieve(&self, key: NodeID) -> Option<Vec<AuctionGossip>> {
         if let Some(value) = self.data_store.read().get(&key) {
             Some(value.clone())
         } else {
@@ -77,5 +99,32 @@ impl KadNode {
 
     pub fn get_uid(&self) -> NodeID {
         self.uid.clone()
+    }
+
+    pub fn get_timestamp(&self) -> Arc<AtomicU64> {
+        self.timestamp.clone()
+    }
+   
+    pub fn increment(&self) -> u64 {
+        self.timestamp.fetch_add(1, SeqCst)
+    }
+
+    // syncronizes timestamp
+    pub fn compare(&self, other: u64) -> u64 {
+        loop {
+            let cur = self.timestamp.load(SeqCst);
+            if cur >= other {
+               return cur;
+            } else {
+                match self.timestamp.compare_exchange(cur, other+1, SeqCst, Acquire) {
+                    Ok(value) => return value,
+                    Err(value) => {
+                        if value >= other {
+                           return value;
+                        }
+                    },
+                }
+            }
+        }
     }
 }

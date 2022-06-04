@@ -1,16 +1,18 @@
-use std::{sync::Arc, collections::HashSet, cmp::Ordering};
-use chrono::Utc;
+use std::{sync::{Arc, atomic::AtomicU64}, collections::HashSet, cmp::Ordering};
 use futures::future::join_all;
 use log::warn;
 use parking_lot::{RwLock, Mutex};
 use prost::Message;
+use std::sync::atomic::Ordering::SeqCst;
+
+use crate::auctions::auction::AuctionGossip;
 
 use super::{
     node::Contact, 
     key::{NodeID, NodeValidator}, 
     kad::KadNode, 
     signatures::Signer,
-    util::{gen_cookie, format_address}, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self, PingM}
+    util::{gen_cookie, format_address, to_auction_data, encode_store, to_gossip_vec}, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self, PingM}
 };
 
 const PARALLEL_LOOKUPS: i32 = 3;
@@ -33,22 +35,23 @@ static BOOTSTRAP_KEY: &'static [u8] = &[45, 45, 45, 45, 45, 66, 69, 71, 73, 78, 
 static BOOT_ID : &'static [u8] = &[128, 50, 160, 82, 60, 70, 232, 187, 174, 50, 44, 166, 190, 12, 230, 223, 97, 136, 241, 43, 218, 167, 192, 76, 236, 149, 99, 30, 62, 112, 182, 190];
 static BOOTSTRAP_IP : &str = "10.128.0.3:30030";
 
-
-#[derive(Debug,Clone)]
+#[derive(Debug)]
 struct FNodeManager {
     k_closest: Arc<Mutex<Vec<Contact>>>,
     nodes_to_visit: Arc<Mutex<Vec<Contact>>>,
     visited_nodes : Arc<RwLock<HashSet<NodeID>>>,  
+    timestamp: Arc<AtomicU64>,
     validator: NodeValidator,
     address: String,
 }
 
 impl FNodeManager {
-    pub fn new(k_closest: Vec<Contact>, nodes_to_visit: Vec<Contact>, visited_nodes: HashSet<NodeID>, validator: NodeValidator, address: String) -> Self {
+    pub fn new(k_closest: Vec<Contact>, nodes_to_visit: Vec<Contact>, visited_nodes: HashSet<NodeID>,timestamp: Arc<AtomicU64> ,validator: NodeValidator, address: String) -> Self {
         Self {
             k_closest : Arc::new(Mutex::new(k_closest)),
             nodes_to_visit : Arc::new(Mutex::new(nodes_to_visit)),
             visited_nodes : Arc::new(RwLock::new(visited_nodes)),
+            timestamp,
             validator : validator,
             address : address,
         }
@@ -89,6 +92,10 @@ impl FNodeManager {
     pub fn get_validator(&self) -> &NodeValidator {
         &self.validator
     }
+
+    pub fn increment(&self) -> u64 {
+        self.timestamp.fetch_add(1, SeqCst)
+    }
 }
 #[derive(Debug,Clone)]
 pub struct Client {
@@ -107,7 +114,8 @@ impl Client {
         self.node.get_uid()
  }
     pub async fn bootstrap(&self) -> Result<(), &str> {
-        self.node.insert(Contact::new(NodeID::from_vec(BOOT_ID.to_vec()), BOOTSTRAP_IP.to_owned(), BOOTSTRAP_KEY.to_vec()));
+        let boot_key = NodeID::from_vec(BOOT_ID.to_vec());
+        self.node.insert(Contact::new(boot_key, BOOTSTRAP_IP.to_owned(), BOOTSTRAP_KEY.to_vec()));
         let k_closest = self.send_fnode(self.node.uid).await;
         for node in k_closest {
             self.node.insert(node);
@@ -116,13 +124,34 @@ impl Client {
         Ok(())
     }
 
+    pub async fn annouce_auction(&self, auct: AuctionGossip) {
+        let boot_key = NodeID::from_vec(BOOT_ID.to_vec());
+        let bootstrap_closest = self.send_fnode(boot_key).await;
+
+        for con in bootstrap_closest {
+            self.send_store(boot_key,auct.clone(),con).await;
+        }
+    }
+
+    pub async fn get_avaliable_auction(&self) -> Option<Vec<AuctionGossip>> {
+        let boot_key = NodeID::from_vec(BOOT_ID.to_vec());
+        self.send_fvalue(boot_key).await
+    }
+
     pub async fn send_fnode(&self, key: NodeID) -> Vec<Contact> {
         let my_closest = self.node.lookup(key);
         let nodes_to_visit:Vec<Contact> = my_closest.iter().map(|a| *a.clone()).collect();
         let k_closest= nodes_to_visit.clone();
         let mut visited_nodes = HashSet::<NodeID>::new();
         visited_nodes.insert(self.node.uid);
-        let find_nodes = FNodeManager::new(k_closest,nodes_to_visit,visited_nodes,self.node.get_validator().clone(),self.node.address.clone());
+        let find_nodes = FNodeManager::new(
+            k_closest,nodes_to_visit,
+            visited_nodes,
+            self.node.get_timestamp(),
+            self.node.get_validator().clone(),
+            self.node.address.clone()
+        );
+
         let info = Arc::new(find_nodes);
         let mut handles = Vec::with_capacity(PARALLEL_LOOKUPS.try_into().unwrap());
         for _i in 0..PARALLEL_LOOKUPS {
@@ -134,19 +163,18 @@ impl Client {
         info.get_k_closest()
     }
 
-    async fn send_fvalue(&self, key: NodeID) -> Option<Vec<u8>> {
+    async fn send_fvalue(&self, key: NodeID) -> Option<Vec<AuctionGossip>> {
         if let Some(maybe_value) = self.node.retrieve(key) {
-            return Some(maybe_value.as_bytes().to_owned());
+            return Some(maybe_value);
         }
         
         let k_closest = self.send_fnode(key).await;
         for contact in k_closest {
             let address = format_address(contact.address.clone());
             let mut client = KademliaClient::connect(address.clone()).await.unwrap();  
-            let timestamp = Utc::now().timestamp();
+            let timestamp = self.node.increment();
             let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
             let request = FValueReq {
-                cookie: gen_cookie(),
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
                     address : self.node.address.to_owned(),
@@ -168,8 +196,8 @@ impl Client {
                     if let Ok(()) = Signer::validate_strong_rep(self.node.get_validator(),&header,&contact.address,&databuf,&hash) {
                         match data {
                             kademlia::f_value_repl::HasValue::Node(_) => continue,
-                            kademlia::f_value_repl::HasValue::Value(value) =>{
-                                return Some(value);
+                            kademlia::f_value_repl::HasValue::Auction(val) =>{
+                                return Some(to_gossip_vec(val.list));
                             }
                         }
                     }
@@ -180,13 +208,14 @@ impl Client {
         None
     }
 
-    async fn send_store(&self,key:NodeID, value:String, contact: Contact) -> Result<(),&'static str> {
+    async fn send_store(&self,key:NodeID, value: AuctionGossip, contact: Contact) -> Result<(),&'static str> {
         let address = format_address(contact.address.clone());
         let mut client = KademliaClient::connect(address.clone()).await.unwrap();  
-        let timestamp = Utc::now().timestamp();
-        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
+        let formated_value = to_auction_data(value);
+        let timestamp =  self.node.increment();
+        let databuf: Vec<u8> = encode_store(&formated_value,key);
+        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,databuf);
         let request = StoreReq {
-                cookie: gen_cookie(),
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
                     address : self.node.address.to_owned(),
@@ -196,7 +225,7 @@ impl Client {
                     signature: request_signature.clone() ,
                 }),
                 target_id: key.as_bytes().to_owned(),
-                value: value,
+                value: Some(formated_value),
             };
         let response =  client.store(request).await;
 
@@ -236,10 +265,9 @@ async fn a_lookup(key: NodeID, info: Arc<FNodeManager>) {
          let remote = KademliaClient::connect(address.clone()).await;  
          match remote {
              Ok(mut remote) => {
-                let timestamp = Utc::now().timestamp();
+                let timestamp = info.increment();
                 let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,node.get_pubkey(),&info.address);
                 let request = FNodeReq {
-                    cookie: gen_cookie(),
                     header: Some( Header {
                         my_id: info.get_uid(),
                         address : info.address.to_owned(),
@@ -344,10 +372,9 @@ pub fn contact_list(kcontact_list: Vec<Kcontact>) -> Vec<Contact> {
 pub async fn send_ping(my_address: &str,validator: &NodeValidator, contact: Contact) -> bool {
     let address = format_address(contact.address.clone());
     if let Ok(mut client) = KademliaClient::connect(address.clone()).await{  
-    let timestamp = Utc::now().timestamp();
+    let timestamp =  gen_cookie();
     let (hash,request_signature) = Signer::sign_weak_header_req(timestamp,contact.get_pubkey(),my_address);
     let request = PingM {
-            cookie: gen_cookie(),
             header: Some( Header {
                 my_id: validator.get_nodeid().as_bytes().to_owned(),
                 address : my_address.to_owned(),

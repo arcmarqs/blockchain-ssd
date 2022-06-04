@@ -9,7 +9,7 @@ pub struct Signer {}
 
 impl Signer {
     
-    pub fn sign_strong_header_req(timestamp: i64, pub_key: &[u8], address: &str, data: Vec<u8>) -> (Vec<u8>,Vec<u8>) {
+    pub fn sign_strong_header_req(timestamp: u64, pub_key: &[u8], address: &str, data: Vec<u8>) -> (Vec<u8>,Vec<u8>) {
         let ipaddr: Vec<&str> = address.split(':').collect();
         let mut hasher = Sha256::new();
         hasher.update(&timestamp.to_be_bytes());
@@ -19,7 +19,7 @@ impl Signer {
         (signature.clone(),encrypt_message(pub_key, &signature))
     }
 
-    pub fn sign_strong_header_rep(timestamp: i64, pub_key: &[u8], address: &str, data: Vec<u8>, rep_signature: &[u8]) -> Vec<u8> {
+    pub fn sign_strong_header_rep(timestamp: u64, pub_key: &[u8], address: &str, data: Vec<u8>, rep_signature: &[u8]) -> Vec<u8> {
         let mut hasher = Sha256::new();
         hasher.update(&timestamp.to_be_bytes());
         hasher.update(&address.as_bytes());
@@ -28,7 +28,7 @@ impl Signer {
         encrypt_message(pub_key, &hasher.finish())
     }
 
-    pub fn sign_weak_header_req(timestamp: i64, pub_key: &[u8], address: &str) -> (Vec<u8>, Vec<u8>) {
+    pub fn sign_weak_header_req(timestamp: u64, pub_key: &[u8], address: &str) -> (Vec<u8>, Vec<u8>) {
         let ipaddr: Vec<&str> = address.split(':').collect();
         println!("HASHER GOES OMNOMNOM ON: {:?} {:?}",  timestamp, ipaddr[0]);
 
@@ -39,7 +39,7 @@ impl Signer {
         (signature.clone(),encrypt_message(pub_key, &signature))
     }
 
-    pub fn sign_weak_header_rep(timestamp: i64,pub_key: &[u8],address: &str,rep_signature: &[u8]) -> Vec<u8> {
+    pub fn sign_weak_header_rep(timestamp: u64,pub_key: &[u8],address: &str,rep_signature: &[u8]) -> Vec<u8> {
         let mut hasher = Sha256::new();
         hasher.update(&timestamp.to_be_bytes());
         hasher.update(address.as_bytes());
