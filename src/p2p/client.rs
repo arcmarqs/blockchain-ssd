@@ -103,6 +103,9 @@ impl Client {
         }
     }
 
+    pub fn get_uid(&self) -> NodeID {
+        self.node.get_uid()
+ }
     pub async fn bootstrap(&self) -> Result<(), &str> {
         self.node.insert(Contact::new(NodeID::from_vec(BOOT_ID.to_vec()), BOOTSTRAP_IP.to_owned(), BOOTSTRAP_KEY.to_vec()));
         let k_closest = self.send_fnode(self.node.uid).await;

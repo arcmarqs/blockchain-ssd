@@ -74,4 +74,8 @@ impl KadNode {
     pub fn get_validator(&self) -> &NodeValidator {
         &self.validator
     }
+
+    pub fn get_uid(&self) -> NodeID {
+        self.uid.clone()
+    }
 }
