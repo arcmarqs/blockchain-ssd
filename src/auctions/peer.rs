@@ -1,7 +1,7 @@
 use crate::p2p::client::Client;
 use crate::p2p::kad::KadNode;
 use crate::p2p::key::NodeID;
-use std::collections::HashMap;
+use std::collections::{HashMap};
 use std::hash::Hash;
 use std::sync::Arc;
 
@@ -25,7 +25,8 @@ impl AuctionPeer{
 
     pub fn new_auction(&mut self, title: String, duration : i64, initial_value: f32) {
         let auction = Auction::new(title,self.client.get_uid(), duration, initial_value);
-        self.my_auctions.insert(auction,Vec::new());
+        let auction_subscribers: Vec<NodeID> = Vec::new();
+        self.my_auctions.insert(auction,auction_subscribers);
     }
 
     pub fn get_subscribed_auctions(&self) -> &HashMap<NodeID, Auction> { 
@@ -44,18 +45,3 @@ impl AuctionPeer{
         //verificar o auction e depois a inserção nodeId
     }*/
 }
-
-impl Hash for AuctionPeer {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.subscribed_auctions.hash(state);
-        self.my_auctions.hash(state);
-    }
-
-}
-impl PartialEq for AuctionPeer {
-    fn eq(&self, other: &Self) -> bool {
-        self.client.get_uid() == other.client.get_uid()
-    }
-}
-
-impl Eq for AuctionPeer {}

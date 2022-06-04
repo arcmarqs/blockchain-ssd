@@ -1,6 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use openssl::sha::Sha256;
 use primitive_types::H256;
+use std::hash::Hash;
 
 use crate::p2p::key::NodeID;
 
@@ -20,8 +21,8 @@ pub struct Auction {
 impl Auction {
     pub fn new( title: String, seller: NodeID,duration : i64, initial_value: f32)  -> Auction {
         let starting_time = DateTime::from(Utc::now());
-        let info = AuctionInfo::new(title,seller,starting_time,initial_value,duration);
         let auction_id = gen_auction_id(&title,seller,starting_time);
+        let info = AuctionInfo::new(title,seller,starting_time,initial_value,duration);
         Auction {
             auction_id,
             state: AuctionState::ONGOING,
@@ -33,6 +34,20 @@ impl Auction {
         self.info.bid(bid_amout, bidder)
     } 
 }
+impl Hash for Auction {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.auction_id.hash(state)
+    }
+}
+
+impl PartialEq for Auction {
+    fn eq(&self, other: &Self) -> bool {
+        self.auction_id == other.auction_id
+    }
+}
+
+impl Eq for Auction {}
+
 #[derive(Debug,Clone)]
 pub struct AuctionInfo {
     title: String,
@@ -88,6 +103,26 @@ impl AuctionInfo {
     } 
 }
 
+#[derive(Debug,Clone)]
+pub struct AuctionAnnouce {
+    auction_id: H256,
+    title: String,
+    seller: NodeID,
+    current_price: f32,
+    state: AuctionState,
+}
+
+impl AuctionAnnouce {
+    pub fn from_Auction(auction: &Auction) -> AuctionAnnouce {
+        AuctionAnnouce{
+            auction_id: auction.auction_id,
+            title: auction.info.get_title().to_owned(),
+            seller: auction.info.seller,
+            current_price: auction.info.current_price,
+            state: auction.state,
+        }
+    }
+}
 fn gen_auction_id(title: &String, seller: NodeID, start: DateTime<Utc>) -> H256 {
     let mut hasher = Sha256::new();
     hasher.update(title.as_bytes());
