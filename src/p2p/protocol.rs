@@ -1,10 +1,13 @@
-use std::{sync::Arc, net::SocketAddr};
+use std::{sync::{Arc, atomic::{ AtomicU64}}, net::SocketAddr, pin::Pin};
 
 use chrono::Utc;
+use futures::Stream;
 use prost::Message;
+use tokio::sync::mpsc;
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Code};
-
-use crate::p2p::util::gen_cookie;
+use crate::{p2p::util::{gen_cookie, grpc_transaction, grpc_block}, ledger::block::Chain};
+use std::sync::atomic::Ordering::{Acquire,SeqCst};
 
 use super::{kad::KadNode, 
     key::NodeID, 
@@ -12,11 +15,11 @@ use super::{kad::KadNode,
     signatures::Signer, 
     kademlia::{
         kademlia_server::{Kademlia, KademliaServer}, 
-        PingM, Kcontact, StoreReq, StoreRepl, FValueReq, FValueRepl, 
+        PingM, Kcontact, StoreReq, StoreRepl, FValueReq, FValueRepl,
         f_value_repl::{HasValue::{Auction,Node as HNode}, HasValue},
-        Kclosest, Header, FNodeReq, FNodeRepl, Auctions}, util::{to_gossip, to_auction_data_vec, encode_fvalue, encode_store}};
+        Kclosest, Header, FNodeReq, FNodeRepl, Auctions, BroadcastReq, Empty, Gblock, kademlia_client::KademliaClient}, util::{to_gossip, to_auction_data_vec, encode_fvalue, encode_store, format_address, to_data, to_block, build_brequest}};
 
-#[derive(Debug,Clone)]
+#[derive(Debug)]
 pub struct KademliaProtocol{
     pub node: Arc<KadNode>,
 }
@@ -24,7 +27,7 @@ pub struct KademliaProtocol{
 impl KademliaProtocol {
     pub fn new(node: Arc<KadNode>) -> KademliaProtocol {
         KademliaProtocol {
-            node
+            node,
         }
     }
 
@@ -49,6 +52,7 @@ impl KademliaProtocol {
         let con = Contact::new(NodeID::from_vec(id), remote_addr, pub_key.to_vec());
         self.node.insert(con);
     }
+
 }
 
 #[tonic::async_trait]
@@ -176,5 +180,63 @@ impl Kademlia for KademliaProtocol {
         }
         Err(Status::new(Code::InvalidArgument, "Invalid message"))
         
+    }
+
+    async fn broadcast(&self, request: Request<BroadcastReq>) -> Result<Response<Empty>,Status> {
+        let req = request.into_inner();
+        let timestamp = self.node.compare(req.timestamp);
+        if timestamp == req.timestamp + 1 {
+            let data = &req.rdata.unwrap();
+            match data {
+                super::kademlia::broadcast_req::Rdata::Block(b) => {
+                    self.node.store_block(to_block(b.clone()));
+                    if let Err(e) = self.node.validate_blocks() {
+                        println!("{}", e);
+                    }
+                },
+                super::kademlia::broadcast_req::Rdata::Transaction(t) => {
+                    self.node.store_transaction(to_data(t.clone()));
+                    let _ = self.node.mine_and_broadcast();
+                },
+            }
+            let my_closest = self.lookup(self.node.uid);
+            for close in my_closest {
+                let connection = KademliaClient::connect(format_address(close.address)).await;
+                match connection {
+                    Ok(mut chan) => {
+                        let _ = chan.broadcast(build_brequest(&req.timestamp,&data)).await;
+                    },
+                    Err(_) => (),
+                }
+            }
+            
+        }
+
+        Ok(Response::new(Empty{}))
+        
+    }
+
+    type req_chainStream =  ReceiverStream<Result<Gblock, Status>>;
+
+    async fn req_chain(&self, request: Request<PingM>) -> Result<Response<Self::req_chainStream>, Status> {
+        let remote_addr = request.remote_addr().unwrap();
+        let req = request.into_inner();
+        let header = req.header.unwrap();
+        
+        if let Ok(_) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
+            let _timestamp = self.node.compare(header.timestamp);
+            let (tx, rx) = mpsc::channel(4);
+            let chain= self.node.get_chain();
+            tokio::spawn(async move {
+                for block in chain.blocks.iter() {
+                        tx.send(Ok(grpc_block(block.clone()))).await.unwrap();
+                }
+            });
+
+            Ok(Response::new(ReceiverStream::new(rx)))
+        } 
+        else {
+            Err(Status::new(Code::InvalidArgument, "Invalid message"))
+        }
     }
 }

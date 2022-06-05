@@ -3,10 +3,10 @@ use openssl::sha::Sha256;
 use primitive_types::H256;
 use rand::{random, Rng};
 
-use crate::p2p::key::{NodeID, leading_zeros};
+use crate::{p2p::key::{NodeID, leading_zeros}, auctions::auction::AuctionGossip};
 const DIFFICULTY: u32 = 8;
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Block {
    pub id: u64,
    pub nonce: u64,
@@ -17,10 +17,21 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new_block(id: u64, previous_hash: H256, data: Data) -> Self {
-        let (nonce, hash) = proof_of_work(previous_hash, &data, id);
+    pub fn new(id: u64,nonce : u64, prev_hash: H256, hash: H256, timestamp: i64,data: Data) -> Block {
+        Block {
+            id,
+            nonce,
+            prev_hash,
+            hash,
+            timestamp,
+            data,
+        }
+    }
+
+    pub fn mine_block(id: u64, previous_hash: H256, data: Data) -> Block {
+        let (nonce, hash) = proof_of_work(previous_hash, &data);
         let timestamp = Utc::now().timestamp();
-        Self { 
+        Block{ 
             id,
             nonce, 
             prev_hash : previous_hash,                                                          // VER OS TIPOS DA HASH (STRING OU VEC<U8>)
@@ -32,7 +43,7 @@ impl Block {
     
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Data {
     buyer: NodeID,
     seller: NodeID,
@@ -59,23 +70,45 @@ impl Data {
 
         H256::from(hasher.finish())
     }
+
+    pub fn get_auction_id(&self) -> H256 {
+        self.auction_id
+    }
+
+    pub fn get_amount(&self) -> f32 {
+        self.amount
+    }
+
+    pub fn get_seller(&self) -> NodeID {
+        self.seller
+    }
+
+    pub fn get_buyer(&self) -> NodeID {
+        self.buyer
+    }
+
+    pub fn from_auction(auction: AuctionGossip) -> Data {
+        Data {
+            // should be buyer, just testing blockchain
+            buyer: auction.get_seller(),
+            seller: auction.get_seller(),
+            amount: auction.get_price(),
+            auction_id:auction.get_auction_id() ,
+        }
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Chain {
-    blocks: Vec<Block>
+   pub blocks: Vec<Block>
 }
 
 impl Chain {
-    fn new() -> Self {
-        Self {blocks: vec![]}
-    }
-
-    fn start(&mut self) {
+    pub fn new() -> Self {
         let null_node = NodeID::from_h256(H256::zero());
         let data = Data::new(null_node,null_node,0.0,H256::zero());
         let hash = data.hash();
-        let (nonce,cur_hash) = proof_of_work(H256::zero(),&data,0);
+        let (nonce,cur_hash) = proof_of_work(H256::zero(),&data);
 
         let genesis = Block {
             id : 0,
@@ -86,15 +119,31 @@ impl Chain {
             data,
         };
 
-        self.blocks.push(genesis);
+        Self {blocks: vec![genesis]}
     }
 
-    fn add_block(&mut self, block: Block) {
+    pub fn get_chain(&self) -> Chain {
+        self.clone()
+    }
+
+    pub fn replace(&mut self, chain: Vec<Block>) {
+        self.blocks = chain;
+    }
+
+    pub fn mine(&mut self, data: Data) -> Block {
+        let prev_block = self.blocks.last().unwrap();
+        let block = Block::mine_block(prev_block.id, prev_block.hash,data);
+        self.blocks.push(block.clone());
+        return block;
+    }
+
+    pub fn add_block(&mut self, block: Block) -> bool{
         let last_block = self.blocks.last().unwrap();
         if self.validate_block(&block, last_block) {
             self.blocks.push(block);
+            true
         } else {
-            print!("invalid block!");
+            false
         }
     }
 
@@ -116,7 +165,7 @@ impl Chain {
         true
     }
 
-    fn validate_chain(&self,chain: &Chain) -> bool { 
+    pub fn validate_chain(&self,chain: &Chain) -> bool { 
         for i in 1..chain.blocks.len() {                                               //verificar se começa no 1
             let first = chain.blocks.get(i-1).expect("has to exist");
             let second = chain.blocks.get(i).expect("has to exist");
@@ -127,7 +176,7 @@ impl Chain {
         true
     }
 
-    fn choose_chain(&self, local: Chain, remote: Chain) -> Chain {
+    pub fn choose_chain(&self, local: Chain, remote: Chain) -> Chain {
         let is_local_valid = self.validate_chain(&local);       // não preciso de testar a local
         let is_remote_valid = self.validate_chain(&remote);
 
@@ -145,10 +194,14 @@ impl Chain {
         }
      
     }
+
+    pub fn broadcast_block(&self, block: Block) {
+
+    }
 }
 
 
-pub fn proof_of_work(previous_hash: H256, data: &Data, id: u64) -> (u64, H256) {
+pub fn proof_of_work(previous_hash: H256, data: &Data) -> (u64, H256) {
     let mut nonce_ex: u64;
 
     // Hash of our new block
@@ -173,8 +226,15 @@ pub fn proof_of_work(previous_hash: H256, data: &Data, id: u64) -> (u64, H256) {
     }      
 }
     
+fn check_block_integrity(block : &Block) -> bool {
+    block.data.hash() == block.hash
+}
 
-fn test_proof_of_work(block: &Block) -> bool {    
+fn test_proof_of_work(block: &Block) -> bool {
+    if  !(block.data.hash() == block.hash) {
+        return false;
+    }  
+
     let nonce_bytes = block.nonce.clone().to_be_bytes();
     let mut hasher = Sha256::new();
     hasher.update(&block.hash.as_bytes());
@@ -184,6 +244,5 @@ fn test_proof_of_work(block: &Block) -> bool {
         return true;
     }
     false
-
 }
 

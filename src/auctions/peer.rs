@@ -1,5 +1,6 @@
 use primitive_types::H256;
 
+use crate::ledger::block::Data;
 use crate::p2p::client::Client;
 use crate::p2p::kad::KadNode;
 use crate::p2p::key::NodeID;
@@ -11,9 +12,9 @@ use super::auction::{Auction, AuctionInfo, AuctionGossip, Slotmap};
 
 #[derive(Debug,Clone)]
 pub struct AuctionPeer {
-    client: Client,
+    pub client: Client,
     subscribed_auctions: HashMap<NodeID, Vec<AuctionGossip>>,
-    my_auctions: HashMap<Auction, Vec<NodeID>>,
+    my_auctions: HashMap<H256, Vec<NodeID>>,
     known_auctions: Slotmap,
 }
 
@@ -27,11 +28,20 @@ impl AuctionPeer{
         }
     }
 
+    // only an exemple to test the blockchain
+    pub fn fulfill_transaction(&self,index: i32) {
+        let id = self.known_auctions.get(index).unwrap().clone();
+        if self.my_auctions.contains_key(&id.get_auction_id()){
+        let data = Data::from_auction(id);
+        let _ = self.client.broadcast_transaction(data);
+        }
+    }
+
     pub fn new_auction(&mut self, title: String, duration : i64, initial_value: f32) {
         let auction = Auction::new(title,self.client.get_uid(), duration, initial_value);
         let auction_subscribers: Vec<NodeID> = Vec::new();
         let _ = self.client.annouce_auction(auction.to_gossip());
-        self.my_auctions.insert(auction,auction_subscribers);
+        self.my_auctions.insert(auction.get_auction_id(),auction_subscribers);
     }
 
     pub async fn get_avaliable_auctions(&mut self) {
@@ -47,11 +57,11 @@ impl AuctionPeer{
         }
     }
 
-    pub fn bid_auction(&mut self, index: i32,bid : f32)  {
+    pub async  fn bid_auction(&mut self, index: i32,bid : f32)  {
         match self.known_auctions.get_mut(index) {
             Some(gossip) =>{ 
-                if let Ok(bidded_gossip) = gossip.bid(bid) {
-                self.insert_subscribe(bidded_gossip.get_seller(), bidded_gossip.clone());
+                if let Ok(bidded_gossip) = gossip.bid(bid,self.client.get_uid()) {
+                let _ = self.insert_subscribe(bidded_gossip.get_seller(), bidded_gossip.clone()).await;
                 }
             },
             None => println!("Invalid auction"),
@@ -76,7 +86,7 @@ impl AuctionPeer{
     }
     
 
-    fn insert_subscribe(&mut self, key: NodeID, value: AuctionGossip) {
+    async fn insert_subscribe(&mut self, key: NodeID, value: AuctionGossip) {
         match self.subscribed_auctions.get_mut(&key) {
             Some(vec) => {
                 let mut id = 0;
@@ -95,15 +105,6 @@ impl AuctionPeer{
             },
         }
 
-        self.client.subscribe_auction(value.clone());
+        let _ = self.client.subscribe_auction(value.clone()).await;
     }
-
-    pub fn get_subscribed_auctions(&self) -> &HashMap<NodeID, Vec<AuctionGossip>> { 
-        &self.subscribed_auctions 
-    }
-
-    pub fn get_my_auctions(&self) -> &HashMap<Auction, Vec<NodeID>> { 
-        &self.my_auctions 
-    }
-
 }

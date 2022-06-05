@@ -30,6 +30,10 @@ impl Auction {
         }
     }
 
+    pub fn get_auction_id(&self) -> H256 {
+        self.auction_id.clone()
+    }
+
     pub fn bid(&mut self, bid_amout: f32, bidder: NodeID) -> Result<(),&str> {
         self.info.bid(bid_amout, bidder)
     } 
@@ -113,6 +117,7 @@ pub struct AuctionGossip {
     auction_id: H256,
     title: String,
     seller: NodeID,
+    buyer: NodeID,
     current_price: f32,
     state: AuctionState,
 }
@@ -123,16 +128,18 @@ impl AuctionGossip{
             auction_id: auction.auction_id,
             title: auction.info.get_title().to_owned(),
             seller: auction.info.seller,
+            buyer: auction.info.highest_bidder.unwrap(),
             current_price: auction.info.current_price,
             state: auction.state,
         }
     }
 
-    pub fn new(auction_id: H256, title: String, current_price: f32, state: AuctionState, seller: NodeID) -> AuctionGossip {
+    pub fn new(auction_id: H256, title: String, buyer: NodeID,current_price: f32, state: AuctionState, seller: NodeID) -> AuctionGossip {
         AuctionGossip {
             auction_id,
             state,
             title,
+            buyer,
             seller,
             current_price,
         }
@@ -154,6 +161,10 @@ impl AuctionGossip{
         self.auction_id
     }
 
+    pub fn get_buyer(&self) -> NodeID {
+        self.buyer
+    }
+
     pub fn get_bool_state(&self) -> bool {
         match self.state {
             AuctionState::ONGOING => true,
@@ -161,11 +172,12 @@ impl AuctionGossip{
         }
     }
 
-    pub fn bid(&mut self, bid_amout: f32) -> Result<(AuctionGossip),&'static str> {
+    pub fn bid(&mut self, bid_amout: f32,buyer: NodeID) -> Result<(AuctionGossip),&'static str> {
         if self.current_price >= bid_amout {
             Err("bid must be greater than current price")
         } else {
             self.current_price = bid_amout;
+            self.buyer = buyer.clone();
             Ok(self.clone())
         }
     }
@@ -210,6 +222,10 @@ impl Slotmap {
 
     pub fn get_mut(&mut self,index: i32) -> Option<&mut AuctionGossip> {
         self.map.get_mut(&index)
+    }
+
+    pub fn get(&self,index: i32) -> Option<&AuctionGossip> {
+        self.map.get(&index)
     }
 
     pub fn insert(&mut self, gossip: AuctionGossip) -> i32 {

@@ -20,7 +20,8 @@ impl NodeValidator {
         let (k,pub_key,priv_key) = get_keypair();
         let node_id = NodeID(k);
         let nonce = solve_puzzle(node_id);     
-        println!("k: {:?}", k.as_bytes());
+        println!("keybytes: {:?}", k.as_bytes());
+        println!("key: {:?}", k);
         println!("NONCE: {:?}", nonce);
 
         NodeValidator {

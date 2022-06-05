@@ -3,16 +3,17 @@ use futures::future::join_all;
 use log::warn;
 use parking_lot::{RwLock, Mutex};
 use prost::Message;
+use tonic::Request;
 use std::sync::atomic::Ordering::SeqCst;
 
-use crate::auctions::auction::AuctionGossip;
+use crate::{auctions::auction::AuctionGossip, ledger::block::Data};
 
 use super::{
     node::Contact, 
     key::{NodeID, NodeValidator}, 
     kad::KadNode, 
     signatures::Signer,
-    util::{gen_cookie, format_address, to_auction_data, encode_store, to_gossip_vec}, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self, PingM}
+    util::{gen_cookie, format_address, to_auction_data, encode_store, to_gossip_vec, grpc_transaction}, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self, PingM, BroadcastReq}
 };
 
 const PARALLEL_LOOKUPS: i32 = 3;
@@ -110,9 +111,21 @@ impl Client {
         }
     }
 
+    pub fn print_rtable(&self) { 
+        self.node.print_rtable();
+    }
     pub fn get_uid(&self) -> NodeID {
         self.node.get_uid()
- }
+    }
+
+    pub fn get_address(&self) -> String {
+        self.node.address.clone()
+    }
+
+    pub fn print_blockchain(&self) {
+        self.node.print_blockchain()
+    }
+
     pub async fn bootstrap(&self) -> Result<(), &str> {
         let boot_key = NodeID::from_vec(BOOT_ID.to_vec());
         self.node.insert(Contact::new(boot_key, BOOTSTRAP_IP.to_owned(), BOOTSTRAP_KEY.to_vec()));
@@ -248,6 +261,27 @@ impl Client {
                 Err("Failed to verify signature")
              },
             Err(_) => Err("Failed to unwrap response"),
+        }
+    }
+
+    pub async fn broadcast_transaction(&self, data: Data) {
+        let my_closest = self.node.lookup(self.get_uid());
+        let timestamp = self.node.increment_broadcast();
+        let data = grpc_transaction(data.clone());
+    
+        for contact in my_closest {
+            let connection = KademliaClient::connect(format_address(contact.address)).await; 
+
+            match connection {
+                Ok(mut channel) => {
+                    let broadcast_message = Request::new(BroadcastReq { 
+                        timestamp, 
+                        rdata:  Some(super::kademlia::broadcast_req::Rdata::Transaction(data.clone())),
+                    });
+                    let _ = channel.broadcast(broadcast_message);
+                },
+                Err(_) => continue,
+            }
         }
     }
 

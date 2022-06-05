@@ -30,7 +30,6 @@ impl Signer {
 
     pub fn sign_weak_header_req(timestamp: u64, pub_key: &[u8], address: &str) -> (Vec<u8>, Vec<u8>) {
         let ipaddr: Vec<&str> = address.split(':').collect();
-        println!("HASHER GOES OMNOMNOM ON: {:?} {:?}",  timestamp, ipaddr[0]);
 
         let mut hasher = Sha256::new();
         hasher.update(&timestamp.to_be_bytes());
@@ -62,7 +61,6 @@ impl Signer {
             hasher.update(ipaddr[0].as_bytes());
             let sign = hasher.finish().to_vec();
             if signature == sign {
-                println!("inside");
                 return Ok(sign);
             }
         }

@@ -1,6 +1,8 @@
+use std::io::Write;
 use std::sync::Arc;
 use std::{io, net::SocketAddr};
 mod p2p;
+use auctions::peer::AuctionPeer;
 use p2p::client::Client;
 use p2p::kad::KadNode;
 use p2p::node::Contact;
@@ -9,44 +11,85 @@ use std::env;
 use tokio::time;
 use tokio::{signal, task, time::Duration};
 mod auctions;
-use auctions as auct;
+use auctions::peer;
 mod ledger;
 use ledger::block::Block;
 
 use crate::p2p::client::send_ping;
 use crate::p2p::key::{verify_puzzle, NodeID};
 
+
+fn read_terminal() -> String {
+  let mut line = String::new();
+  std::io::stdout().flush().unwrap();
+  std::io::stdin().read_line(&mut line).expect("Error: Could not read a line");
+
+  line.trim().to_string()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
-    //  let ip: Vec<&str>= args[1].split(":").collect();
-    //  let port = ip[1].to_string().parse::<u16>().unwrap();
     let address: String = args[1].split('\n').collect();    
     let is_bootstrap: String = args[2].split('\n').collect();
-    println!("address: {:?} {:?}", address, is_bootstrap);
     let node = Arc::new(KadNode::new(address.clone()));
-    let cl = Client::new(node.clone());
     let svnode = node.clone();
-    //let plsinsert = KadNode::new("192.0.0.3:50050".to_owned());
-   // node.insert(plsinsert.as_contact());
+    let mut auctpeer = AuctionPeer::new(node.clone());
     let addr = address.parse().unwrap();
-
     task::spawn(async move { 
       server::server(addr, svnode).await 
     });
-    
-    if is_bootstrap != "bootstrap".to_owned() {
-      println!("bootstrapping");
-      let _ = cl.bootstrap().await;
+
+    loop {
+      println!("Insert command");
+      let raw_command = read_terminal();
+      let command: Vec<&str> = raw_command.split(' ').collect();
+      match command[0] {
+        "bootstrap" => {
+          assert_eq!(command.len(),1);
+          if &is_bootstrap == "bootstrap"{
+            println!("Currently on bootstrap node");
+          } else {
+            let _ = auctpeer.client.bootstrap();
+            auctpeer.client.print_rtable();
+          }
+        },
+        "new_auction" => {
+          assert_eq!(command.len(),4);
+          let title = command[1].to_string();
+          let initial_price = command[2].parse::<f32>().unwrap();
+          let duration = command[3].parse::<i64>().unwrap();
+          auctpeer.new_auction(title,duration,initial_price);
+        },
+        "search_auctions" => {
+          assert_eq!(command.len(),1);
+          let _ = auctpeer.get_avaliable_auctions().await;
+        },
+        "bid" => {
+          assert_eq!(command.len(),3);
+          let index = command[1].parse::<i32>().unwrap();
+          let bid = command[2].parse::<f32>().unwrap();
+          let _ = auctpeer.bid_auction(index, bid).await;
+        },
+        "transaction" => {
+          assert_eq!(command.len(),2);
+         let index = command[1].parse::<i32>().unwrap();
+         auctpeer.fulfill_transaction(index);
+        },
+        "print_blockchain" => {
+          assert_eq!(command.len(),1);
+            auctpeer.client.print_blockchain()
+        }
+        "update_subscribed" => {
+          assert_eq!(command.len(),1);
+          let _ = auctpeer.update_subscribed().await;
+        },
+
+        "exit" => {
+          return Ok(());
+        }
+
+        _ => println!("Invalid Command"),
+      }
     }
-  
-    let ping = send_ping(&address, node.get_validator(), node.as_contact()).await;
-    println!("{:?}",ping);
-    //let res = cl.send_fnode(node.uid).await;
-   // println!("closest {:?}", res);
-
-    //time::sleep(Duration::from_secs(5)).await;
-
-    signal::ctrl_c().await?;
-    Ok(())
 }

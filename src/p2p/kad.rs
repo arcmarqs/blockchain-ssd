@@ -2,10 +2,11 @@ use std::{collections::HashMap, sync::{atomic::AtomicU64, Arc}};
 
 use chrono::{DateTime, Utc};
 use parking_lot::{RwLock, Mutex};
+use tonic::{Request, transport::Error};
 use std::sync::atomic::Ordering::{SeqCst,Acquire};
-use crate::auctions::auction::AuctionGossip;
+use crate::{auctions::auction::AuctionGossip, ledger::{block::{Chain, Block, Data}, miner::Miner}};
 
-use super::{key::{NodeValidator, NodeID}, rtable::Rtable, node::Contact, client::Client, kademlia::{kademlia_client::KademliaClient, Header, StoreReq}, util::{format_address, encode_store, to_auction_data}, signatures::Signer};
+use super::{key::{NodeValidator, NodeID}, rtable::Rtable, node::Contact, client::Client, kademlia::{kademlia_client::KademliaClient, Header, StoreReq, BroadcastReq, Gblock, broadcast_req::Rdata, PingM}, util::{format_address, encode_store, to_auction_data, grpc_block, to_block}, signatures::Signer};
 
 #[derive(Debug)]
 pub struct KadNode {
@@ -13,9 +14,11 @@ pub struct KadNode {
     pub address: String,
     pub join_date: DateTime<Utc>,
     timestamp: Arc<AtomicU64>,
+    last_broadcast: AtomicU64,
     validator: NodeValidator,
     rtable: RwLock<Rtable>,
     data_store: RwLock<HashMap<NodeID,Vec<AuctionGossip>>>,
+    miner: Miner
 }
 
 impl KadNode {
@@ -28,8 +31,10 @@ impl KadNode {
             rtable: RwLock::new(Rtable::new()),
             join_date: date,
             timestamp: Arc::new(AtomicU64::new(0)),
+            last_broadcast: AtomicU64::new(0),
             data_store: RwLock::new(HashMap::new()),
             validator : valid,
+            miner: Miner::new(), 
         }
     }
 
@@ -52,7 +57,9 @@ impl KadNode {
     pub fn print_rtable(&self) {
         println!("{:?}",self.rtable.try_read().unwrap().head);
     }
-
+    pub fn print_blockchain(&self) {
+        self.miner.print_blockchain()
+    }
     pub fn store_value(&self, key: NodeID, value: AuctionGossip, timestamp: u64) -> Result<(), &'static str> {
         let mut keys = self.get_store_keys(&value);
         if !keys.contains(&key) {
@@ -113,9 +120,36 @@ impl KadNode {
     pub fn get_timestamp(&self) -> Arc<AtomicU64> {
         self.timestamp.clone()
     }
-   
+
+    pub fn get_chain(&self) -> Chain {
+        self.miner.get_chain()
+    }
+    
     pub fn increment(&self) -> u64 {
         self.timestamp.fetch_add(1, SeqCst)
+    }
+
+    
+    pub fn increment_broadcast(&self) -> u64 {
+        self.last_broadcast.fetch_add(1, SeqCst)
+    }
+
+    pub fn compare_broadcast(&self, other: u64) -> u64 {
+        loop {
+            let cur = self.last_broadcast.load(SeqCst);
+            if cur >= other {
+               return cur;
+            } else {
+                match self.last_broadcast.compare_exchange(cur, other+1, SeqCst, Acquire) {
+                    Ok(value) => return value,
+                    Err(value) => {
+                        if value >= other {
+                           return value;
+                        }
+                    },
+                }
+            }
+        }
     }
 
     // syncronizes timestamp
@@ -135,6 +169,14 @@ impl KadNode {
                 }
             }
         }
+    }
+
+    pub fn store_transaction(&self, t: Data) {
+        self.miner.store_transaction(t)
+    }
+
+    pub fn store_block(&self,block: Block) {
+        self.miner.store_block(block)
     }
 
     fn get_store_keys(&self,value: &AuctionGossip) -> Vec<NodeID> {
@@ -197,4 +239,73 @@ impl KadNode {
         }
     }
 
+    pub async fn mine_and_broadcast(&self) {
+        let block = self.miner.mine();
+        let my_closest = self.lookup(self.uid);
+        let timestamp = self.increment_broadcast();
+        let data = grpc_block(block.clone());
+        
+
+        for contact in my_closest {
+            let connection = KademliaClient::connect(format_address(contact.address)).await; 
+
+            match connection {
+                Ok(mut channel) => {
+                    let broadcast_message = Request::new(BroadcastReq { 
+                        timestamp, 
+                        rdata:  Some(super::kademlia::broadcast_req::Rdata::Block(data.clone())),
+                    });
+                    let _ = channel.broadcast(broadcast_message);
+                },
+                Err(_) => continue,
+            }
+        }
+    }
+
+    pub async fn request_chain(&self)  -> Result<(), Box<dyn std::error::Error>> {
+        let timestamp =  self.increment();
+        let closest = self.lookup(self.uid);
+        let mut chains:  Vec<Vec<Block>> = Vec::new();
+        for close in closest {
+            let client = KademliaClient::connect(format_address(close.address.clone())).await;
+            let mut chain : Vec<Block> = Vec::new();
+            match client {
+                Ok(mut channel) => {
+                    let (_,request_signature) = Signer::sign_weak_header_req(timestamp,close.get_pubkey(),&self.address);
+                    let request = PingM {
+                        header: Some( Header {
+                            my_id: self.validator.get_nodeid().as_bytes().to_owned(),
+                            address : self.address.to_owned(),
+                            pub_key: self.validator.get_pubkey(),
+                            nonce: self.validator.get_nonce(),
+                            timestamp: timestamp.clone(),
+                            signature: request_signature.clone(),
+                        }),
+                    };
+        
+                    let mut stream = channel
+                        .req_chain(Request::new(request))
+                        .await?
+                        .into_inner();
+                  
+                    
+                    while let Some(block) = stream.message().await? {
+                        chain.push(to_block(block));
+                    }
+                },
+                Err(_) => continue,
+            }
+
+            if !chain.is_empty() {
+                chains.push(chain);
+            }
+        }
+
+        self.miner.choose_chain(chains);
+        Ok(())
+    }
+
+    pub fn validate_blocks(&self) -> Result<(), &'static str>{
+        self.miner.validate_blocks()
+    }
 }

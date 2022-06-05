@@ -3,11 +3,14 @@ syntax = "proto3";
 package kadproto;
 
 service Kademlia {
-    rpc Ping(PingM) returns(PingM) {}
-    rpc Store(StoreReq) returns(StoreRepl) {}
-    rpc Find_Node(FNodeReq) returns(FNodeRepl) {}
-    rpc Find_Value(FValueReq) returns(FValueRepl) {}
+    rpc ping(PingM) returns(PingM) {}
+    rpc store(StoreReq) returns(StoreRepl) {}
+    rpc find_node(FNodeReq) returns(FNodeRepl) {}
+    rpc find_value(FValueReq) returns(FValueRepl) {}
+    rpc broadcast(BroadcastReq) returns(Empty) {}
+    rpc req_chain(PingM) returns (stream Gblock) {}
 }
+message Empty {}
 
 message PingM {
     header header = 2;
@@ -72,6 +75,31 @@ message auction_data{
     bytes auction_id = 1;
     string title = 2;
     bytes seller = 3;
-    float price = 4;
-    bool status = 5;
+    bytes buyer = 4;
+    float price = 5;
+    bool status = 6;
+}
+
+message BroadcastReq {
+    uint64 timestamp = 1;
+    oneof rdata {
+        Gblock block = 3;
+        Transaction transaction = 4;
+    }
+}
+
+message Gblock {
+    uint64 id=1;
+    uint64 nonce=2;
+    bytes prev_hash =3;
+    bytes current_hash = 4;
+    int64 timestamp = 5;
+    Transaction data = 6;  
+}
+
+message Transaction {
+    bytes seller = 1;
+    bytes buyer = 2;
+    float amout = 3;
+    bytes auction_id = 4;
 }
