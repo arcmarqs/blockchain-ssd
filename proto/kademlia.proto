@@ -3,56 +3,103 @@ syntax = "proto3";
 package kadproto;
 
 service Kademlia {
-    rpc Ping(PingM) returns (PingM) {}
-    rpc Store(StoreReq) returns(StoreRepl) {}
-    rpc Find_Node(FNodeReq) returns(FNodeRepl) {}
-    rpc Find_Value(FValueReq) returns(FValueRepl) {}
+    rpc ping(PingM) returns(PingM) {}
+    rpc store(StoreReq) returns(StoreRepl) {}
+    rpc find_node(FNodeReq) returns(FNodeRepl) {}
+    rpc find_value(FValueReq) returns(FValueRepl) {}
+    rpc broadcast(BroadcastReq) returns(Empty) {}
+    rpc req_chain(PingM) returns (stream Gblock) {}
 }
+message Empty {}
 
 message PingM {
-    string cookie = 1; // "Magic cookie" used to track this exact ping request
-    bytes id = 2;
+    header header = 2;
 }
 
 message StoreReq {
-    string cookie = 1;
-    bytes my_id = 2;
-    bytes key = 3;
-    string value = 4;
+    header header = 2;
+    bytes target_id = 3;
+    auction_data value = 4;
 }
 
 message StoreRepl {
-    string cookie = 1;
-    bytes my_id = 2;
+    header header = 2;
 }
 
 message FNodeReq {
-    string cookie = 1;
-    bytes my_id = 2;
-    bytes uid = 3;
+    header header = 2;
+    bytes target_id = 3;
 }
 
 message FNodeRepl {
-    string cookie = 1;
-    bytes my_id = 2;
-    repeated kcontact knode = 3;
+    header header = 2;
+    kclosest nodes = 3;
 }
 
 message FValueReq {
-   string cookie = 1;
-   bytes my_id = 2;
-   bytes uid = 3;
+   header header = 2;
+   bytes target_id = 3;
 }
 
 message FValueRepl {
-    string cookie = 1;
-    bytes my_id = 2;
-    repeated kcontact node = 3;
-    optional string value = 4;
+    header header = 2;
+    oneof has_value {
+        kclosest node = 4;
+        auctions auction = 5;
+    }
 }
 
+message kclosest {
+    repeated kcontact node = 1;
+}
 message kcontact {
     bytes uid = 1;
-    string ip = 2;
-    int32 port = 3;
+    string address = 2;
+    bytes pub_key = 3;
+}
+
+message header {
+    bytes my_id = 1;
+    string address = 2;
+    bytes pub_key = 3;
+    uint64 nonce = 4;
+    uint64 timestamp = 5;
+    bytes signature = 6;
+}
+
+message auctions{
+    repeated auction_data list = 1;
+}
+
+message auction_data{
+    bytes auction_id = 1;
+    string title = 2;
+    bytes seller = 3;
+    bytes buyer = 4;
+    float price = 5;
+    bool status = 6;
+}
+
+message BroadcastReq {
+    uint64 timestamp = 1;
+    oneof rdata {
+        Gblock block = 3;
+        Transaction transaction = 4;
+    }
+}
+
+message Gblock {
+    uint64 id=1;
+    uint64 nonce=2;
+    bytes prev_hash =3;
+    bytes current_hash = 4;
+    int64 timestamp = 5;
+    Transaction data = 6;  
+}
+
+message Transaction {
+    bytes seller = 1;
+    bytes buyer = 2;
+    float amout = 3;
+    bytes auction_id = 4;
 }
