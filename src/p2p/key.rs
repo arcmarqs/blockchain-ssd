@@ -81,6 +81,10 @@ impl NodeID {
         NodeID(H256::from_slice(source.as_slice()))
     }
 
+    pub fn from_h256(source: H256) -> NodeID {
+        NodeID(source)
+    }
+
     // XOR's the key's first 8*chunk + index bits with a mask of size 8*chunk + index with the LSB set to 1
     pub fn set_bitmask(&self, index: usize, chunk: usize) -> NodeID {
         let mut bitmask: [u8;32] = [0;32];

@@ -10,6 +10,8 @@ use tokio::time;
 use tokio::{signal, task, time::Duration};
 mod auctions;
 use auctions as auct;
+mod ledger;
+use ledger::block::Block;
 
 use crate::p2p::client::send_ping;
 use crate::p2p::key::{verify_puzzle, NodeID};
