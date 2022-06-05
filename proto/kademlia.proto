@@ -1,0 +1,77 @@
+// Kademlia Protocol messages
+syntax = "proto3";
+package kadproto;
+
+service Kademlia {
+    rpc Ping(PingM) returns(PingM) {}
+    rpc Store(StoreReq) returns(StoreRepl) {}
+    rpc Find_Node(FNodeReq) returns(FNodeRepl) {}
+    rpc Find_Value(FValueReq) returns(FValueRepl) {}
+}
+
+message PingM {
+    header header = 2;
+}
+
+message StoreReq {
+    header header = 2;
+    bytes target_id = 3;
+    auction_data value = 4;
+}
+
+message StoreRepl {
+    header header = 2;
+}
+
+message FNodeReq {
+    header header = 2;
+    bytes target_id = 3;
+}
+
+message FNodeRepl {
+    header header = 2;
+    kclosest nodes = 3;
+}
+
+message FValueReq {
+   header header = 2;
+   bytes target_id = 3;
+}
+
+message FValueRepl {
+    header header = 2;
+    oneof has_value {
+        kclosest node = 4;
+        auctions auction = 5;
+    }
+}
+
+message kclosest {
+    repeated kcontact node = 1;
+}
+message kcontact {
+    bytes uid = 1;
+    string address = 2;
+    bytes pub_key = 3;
+}
+
+message header {
+    bytes my_id = 1;
+    string address = 2;
+    bytes pub_key = 3;
+    uint64 nonce = 4;
+    uint64 timestamp = 5;
+    bytes signature = 6;
+}
+
+message auctions{
+    repeated auction_data list = 1;
+}
+
+message auction_data{
+    bytes auction_id = 1;
+    string title = 2;
+    bytes seller = 3;
+    float price = 4;
+    bool status = 5;
+}

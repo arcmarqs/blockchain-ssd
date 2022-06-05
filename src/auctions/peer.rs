@@ -1,0 +1,109 @@
+use primitive_types::H256;
+
+use crate::p2p::client::Client;
+use crate::p2p::kad::KadNode;
+use crate::p2p::key::NodeID;
+use std::collections::{HashMap, BTreeMap};
+use std::hash::Hash;
+use std::sync::Arc;
+
+use super::auction::{Auction, AuctionInfo, AuctionGossip, Slotmap};
+
+#[derive(Debug,Clone)]
+pub struct AuctionPeer {
+    client: Client,
+    subscribed_auctions: HashMap<NodeID, Vec<AuctionGossip>>,
+    my_auctions: HashMap<Auction, Vec<NodeID>>,
+    known_auctions: Slotmap,
+}
+
+impl AuctionPeer{
+    pub fn new(node : Arc<KadNode>) -> AuctionPeer {
+            AuctionPeer{
+                client : Client::new(node),
+                subscribed_auctions: HashMap::new(),
+                my_auctions: HashMap::new(),
+                known_auctions: Slotmap::new(),
+        }
+    }
+
+    pub fn new_auction(&mut self, title: String, duration : i64, initial_value: f32) {
+        let auction = Auction::new(title,self.client.get_uid(), duration, initial_value);
+        let auction_subscribers: Vec<NodeID> = Vec::new();
+        let _ = self.client.annouce_auction(auction.to_gossip());
+        self.my_auctions.insert(auction,auction_subscribers);
+    }
+
+    pub async fn get_avaliable_auctions(&mut self) {
+        match self.client.get_avaliable_auctions().await {
+            Some(vec) => {
+                for gossip in vec {
+                    self.known_auctions.insert(gossip);
+                }
+
+                println!("{:?}", self.known_auctions);
+            },
+            None => println!("No auctions avaliable"),
+        }
+    }
+
+    pub fn bid_auction(&mut self, index: i32,bid : f32)  {
+        match self.known_auctions.get_mut(index) {
+            Some(gossip) =>{ 
+                if let Ok(bidded_gossip) = gossip.bid(bid) {
+                self.insert_subscribe(bidded_gossip.get_seller(), bidded_gossip.clone());
+                }
+            },
+            None => println!("Invalid auction"),
+        }
+    }
+    
+    pub async fn update_subscribed(&self) {
+        let mut interesting_auctions: Vec<AuctionGossip>= Vec::new();
+        for key in self.subscribed_auctions.keys() {
+           if let Some(aucts) = self.client.send_fvalue(*key).await {
+                for auct in aucts {
+                    if self.subscribed_auctions.get(key).unwrap().contains(&auct) {
+                            interesting_auctions.push(auct);
+                    }
+                }
+            }
+        }
+
+        for auction in interesting_auctions {
+            println!("{:?}",auction);
+        }
+    }
+    
+
+    fn insert_subscribe(&mut self, key: NodeID, value: AuctionGossip) {
+        match self.subscribed_auctions.get_mut(&key) {
+            Some(vec) => {
+                let mut id = 0;
+                for v in vec.iter() {
+                    if v == &value {
+                    vec.remove(id);
+                    break;
+                    }
+                    id +=1;
+                }
+                vec.push(value.clone());
+
+            },
+            None => {
+                self.subscribed_auctions.insert(key, vec![value.clone()]);
+            },
+        }
+
+        self.client.subscribe_auction(value.clone());
+    }
+
+    pub fn get_subscribed_auctions(&self) -> &HashMap<NodeID, Vec<AuctionGossip>> { 
+        &self.subscribed_auctions 
+    }
+
+    pub fn get_my_auctions(&self) -> &HashMap<Auction, Vec<NodeID>> { 
+        &self.my_auctions 
+    }
+
+}
