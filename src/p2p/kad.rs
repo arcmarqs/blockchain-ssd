@@ -1,12 +1,18 @@
 use std::{collections::HashMap, sync::{atomic::AtomicU64, Arc}};
 
 use chrono::{DateTime, Utc};
-use parking_lot::{RwLock, Mutex};
-use tonic::{Request, transport::Error};
+use parking_lot::RwLock;
+use tonic::Request;
 use std::sync::atomic::Ordering::{SeqCst,Acquire};
 use crate::{auctions::auction::AuctionGossip, ledger::{block::{Chain, Block, Data}, miner::Miner}};
 
-use super::{key::{NodeValidator, NodeID}, rtable::Rtable, node::Contact, client::Client, kademlia::{kademlia_client::KademliaClient, Header, StoreReq, BroadcastReq, Gblock, broadcast_req::Rdata, PingM}, util::{format_address, encode_store, to_auction_data, grpc_block, to_block}, signatures::Signer};
+use super::{
+    key::{NodeValidator, NodeID}, 
+    rtable::Rtable, node::Contact, 
+    kademlia::{kademlia_client::KademliaClient, Header, StoreReq, BroadcastReq, PingM}, 
+    util::{format_address, encode_store, to_auction_data, grpc_block, to_block}, 
+    signatures::Signer
+};
 
 #[derive(Debug)]
 pub struct KadNode {
@@ -41,7 +47,7 @@ impl KadNode {
     pub fn lookup(&self,id: NodeID) -> Vec<Box<Contact>> {
         self.rtable.read().lookup(id)
     }
-
+/* UNUSED 
     pub fn as_contact(&self) -> Contact {
         Contact::new(
             self.uid.clone(),
@@ -49,6 +55,7 @@ impl KadNode {
             self.validator.get_pubkey(),
         )
     }
+*/
 
     pub fn insert(&self,contact:Contact) {
         self.rtable.write().insert(&self.address,contact, &self.validator)
@@ -60,7 +67,8 @@ impl KadNode {
     pub fn print_blockchain(&self) {
         self.miner.print_blockchain()
     }
-    pub fn store_value(&self, key: NodeID, value: AuctionGossip, timestamp: u64) -> Result<(), &'static str> {
+
+    pub fn store_value(&self, key: NodeID, value: AuctionGossip) -> Result<(), &'static str> {
         let mut keys = self.get_store_keys(&value);
         if !keys.contains(&key) {
             keys.push(key);

@@ -82,10 +82,11 @@ impl FNodeManager {
         self.validator.get_nonce()
     }
 
+/* UNUSED 
     pub fn get_address(&self) -> String {
         self.address.clone()
     }
-
+*/
     pub fn get_uid(&self) -> Vec<u8> {
         self.validator.get_nodeid().as_bytes().to_owned()
     }
@@ -118,9 +119,11 @@ impl Client {
         self.node.get_uid()
     }
 
+/* UNUSED
     pub fn get_address(&self) -> String {
         self.node.address.clone()
     }
+*/
 
     pub fn print_blockchain(&self) {
         self.node.print_blockchain()
@@ -142,9 +145,13 @@ impl Client {
         let bootstrap_closest = self.send_fnode(boot_key).await;
 
         for con in bootstrap_closest {
-            self.send_store(boot_key,auct.clone(),con).await;
+            let _ = self.send_store(boot_key,auct.clone(),con).await;
         }
         Ok(())
+    }
+
+    pub async fn req_blockchain(&self) -> Result<(), Box<dyn std::error::Error>> {
+        self.node.request_chain().await
     }
 
     pub async fn get_avaliable_auctions(&self) -> Option<Vec<AuctionGossip>> {
@@ -156,7 +163,7 @@ impl Client {
         let k_closest = self.send_fnode(gossip.get_seller()).await;
         
         for con in k_closest {
-            self.send_store(self.get_uid(),gossip.clone(),con);
+            let _ = self.send_store(self.get_uid(),gossip.clone(),con);
         }
     }
 

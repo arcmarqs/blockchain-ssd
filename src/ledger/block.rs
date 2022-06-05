@@ -1,7 +1,7 @@
 use chrono::Utc;
 use openssl::sha::Sha256;
 use primitive_types::H256;
-use rand::{random, Rng};
+use rand:: Rng;
 
 use crate::{p2p::key::{NodeID, leading_zeros}, auctions::auction::AuctionGossip};
 const DIFFICULTY: u32 = 8;
@@ -107,7 +107,6 @@ impl Chain {
     pub fn new() -> Self {
         let null_node = NodeID::from_h256(H256::zero());
         let data = Data::new(null_node,null_node,0.0,H256::zero());
-        let hash = data.hash();
         let (nonce,cur_hash) = proof_of_work(H256::zero(),&data);
 
         let genesis = Block {
@@ -164,7 +163,7 @@ impl Chain {
         }
         true
     }
-
+/* UNUSED
     pub fn validate_chain(&self,chain: &Chain) -> bool { 
         for i in 1..chain.blocks.len() {                                               //verificar se começa no 1
             let first = chain.blocks.get(i-1).expect("has to exist");
@@ -194,10 +193,7 @@ impl Chain {
         }
      
     }
-
-    pub fn broadcast_block(&self, block: Block) {
-
-    }
+*/
 }
 
 
@@ -225,10 +221,6 @@ pub fn proof_of_work(previous_hash: H256, data: &Data) -> (u64, H256) {
         }
     }      
 }
-    
-fn check_block_integrity(block : &Block) -> bool {
-    block.data.hash() == block.hash
-}
 
 fn test_proof_of_work(block: &Block) -> bool {
     if  !(block.data.hash() == block.hash) {
@@ -245,4 +237,3 @@ fn test_proof_of_work(block: &Block) -> bool {
     }
     false
 }
-

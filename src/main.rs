@@ -1,22 +1,16 @@
 use std::io::Write;
 use std::sync::Arc;
-use std::{io, net::SocketAddr};
 mod p2p;
 use auctions::peer::AuctionPeer;
-use p2p::client::Client;
-use p2p::kad::KadNode;
-use p2p::node::Contact;
-use p2p::server;
+use p2p::{
+  kad::KadNode,
+  server
+};
 use std::env;
-use tokio::time;
-use tokio::{signal, task, time::Duration};
+use tokio::task;
 mod auctions;
-use auctions::peer;
 mod ledger;
-use ledger::block::Block;
 
-use crate::p2p::client::send_ping;
-use crate::p2p::key::{verify_puzzle, NodeID};
 
 
 fn read_terminal() -> String {
@@ -79,6 +73,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "print_blockchain" => {
           assert_eq!(command.len(),1);
             auctpeer.client.print_blockchain()
+        }
+        "get_blockchain" => {
+          assert_eq!(command.len(),1);
+          auctpeer.client.req_blockchain().await?
         }
         "update_subscribed" => {
           assert_eq!(command.len(),1);

@@ -4,11 +4,9 @@ use crate::ledger::block::Data;
 use crate::p2p::client::Client;
 use crate::p2p::kad::KadNode;
 use crate::p2p::key::NodeID;
-use std::collections::{HashMap, BTreeMap};
-use std::hash::Hash;
+use std::collections::HashMap;
 use std::sync::Arc;
-
-use super::auction::{Auction, AuctionInfo, AuctionGossip, Slotmap};
+use super::auction::{Auction,  AuctionGossip, Slotmap};
 
 #[derive(Debug,Clone)]
 pub struct AuctionPeer {

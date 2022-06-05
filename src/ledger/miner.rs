@@ -1,7 +1,4 @@
-use std::sync::atomic::AtomicU64;
-
 use parking_lot::{Mutex, RwLock};
-
 use super::block::{Block, Chain, Data};
 
 #[derive(Debug)]
@@ -78,4 +75,3 @@ impl Miner {
         self.blockchain.write().replace(chains.pop().unwrap());
     }
 }
-

@@ -33,13 +33,13 @@ impl Auction {
     pub fn get_auction_id(&self) -> H256 {
         self.auction_id.clone()
     }
-
+/*  UNUSED
     pub fn bid(&mut self, bid_amout: f32, bidder: NodeID) -> Result<(),&str> {
         self.info.bid(bid_amout, bidder)
     } 
-
+*/
     pub fn to_gossip(&self) -> AuctionGossip {
-        AuctionGossip::from_Auction(self)
+        AuctionGossip::from_auction(self)
     }
 }
 
@@ -61,30 +61,30 @@ impl Eq for Auction {}
 pub struct AuctionInfo {
     title: String,
     seller: NodeID,
-    initial_price: f32,
+    _initial_price: f32,
     current_price: f32,
     highest_bidder: Option<NodeID>,
-    starting_time: DateTime<Utc>,
-    time_remaining: Duration,
+    _starting_time: DateTime<Utc>,
+    _time_remaining: Duration,
 }
 
 impl AuctionInfo {
-    pub fn new(title: String, seller: NodeID,starting_time: DateTime<Utc>, initial_price: f32, time: i64)-> AuctionInfo {
+    pub fn new(title: String, seller: NodeID, _starting_time: DateTime<Utc>, _initial_price: f32, time: i64)-> AuctionInfo {
         AuctionInfo{
             title,
             seller,
-            initial_price,
-            current_price : initial_price,
+            _initial_price,
+            current_price : _initial_price,
             highest_bidder : None,
-            starting_time,
-            time_remaining: Duration::hours(time),
+            _starting_time,
+            _time_remaining: Duration::hours(time),
         }
     }
 
     pub fn get_title(&self) -> &String {
         &self.title
     }
-
+/* UNUSED 
     pub fn get_seller(&self) -> NodeID {
         self.seller
     }
@@ -110,6 +110,8 @@ impl AuctionInfo {
             Ok(())
         }
     } 
+
+*/
 }
 
 #[derive(Debug,Clone)]
@@ -123,7 +125,7 @@ pub struct AuctionGossip {
 }
 
 impl AuctionGossip{
-    pub fn from_Auction(auction: &Auction) -> AuctionGossip {
+    pub fn from_auction(auction: &Auction) -> AuctionGossip {
         AuctionGossip {
             auction_id: auction.auction_id,
             title: auction.info.get_title().to_owned(),
@@ -172,7 +174,7 @@ impl AuctionGossip{
         }
     }
 
-    pub fn bid(&mut self, bid_amout: f32,buyer: NodeID) -> Result<(AuctionGossip),&'static str> {
+    pub fn bid(&mut self, bid_amout: f32,buyer: NodeID) -> Result<AuctionGossip,&'static str> {
         if self.current_price >= bid_amout {
             Err("bid must be greater than current price")
         } else {
@@ -242,7 +244,7 @@ impl Slotmap {
         self.index += 1;
         self.index
     }
-
+/*  UNUSED
     pub fn remove(&mut self, gossip: AuctionGossip) -> Option<AuctionGossip> {
         let mut count = 0;
 
@@ -266,4 +268,5 @@ impl Slotmap {
         }
         None
     }
+    */
 }

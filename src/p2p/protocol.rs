@@ -1,13 +1,10 @@
-use std::{sync::{Arc, atomic::{ AtomicU64}}, net::SocketAddr, pin::Pin};
+use std::sync::Arc;
 
-use chrono::Utc;
-use futures::Stream;
 use prost::Message;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Code};
-use crate::{p2p::util::{gen_cookie, grpc_transaction, grpc_block}, ledger::block::Chain};
-use std::sync::atomic::Ordering::{Acquire,SeqCst};
+use crate::{p2p::util::{gen_cookie, grpc_block}};
 
 use super::{kad::KadNode, 
     key::NodeID, 
@@ -97,7 +94,7 @@ impl Kademlia for KademliaProtocol {
             let value = to_gossip(&value);
             let timestamp = self.node.compare(header.timestamp);
             if timestamp == header.timestamp +1 {
-            self.node.store_value(key, value, header.timestamp);
+            let _ = self.node.store_value(key, value);
             }
             let reply = StoreRepl {
                 header: Some( Header { 
@@ -184,7 +181,7 @@ impl Kademlia for KademliaProtocol {
 
     async fn broadcast(&self, request: Request<BroadcastReq>) -> Result<Response<Empty>,Status> {
         let req = request.into_inner();
-        let timestamp = self.node.compare(req.timestamp);
+        let timestamp = self.node.compare_broadcast(req.timestamp);
         if timestamp == req.timestamp + 1 {
             let data = &req.rdata.unwrap();
             match data {

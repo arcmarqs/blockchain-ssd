@@ -6,15 +6,15 @@ use tonic::Request;
 use crate::{auctions::auction::{AuctionGossip, AuctionState}, ledger::block::{Block, Data}};
 
 use super::{
-    kademlia::{Kcontact, AuctionData, f_value_repl::HasValue, Gblock, Transaction, BroadcastReq, broadcast_req::Rdata},
+    kademlia::{AuctionData, f_value_repl::HasValue, Gblock, Transaction, BroadcastReq, broadcast_req::Rdata},
     key:: NodeID,
-    node::Contact,
 };
 
 pub fn format_address(address: String) -> String {
     "http://".to_owned() + &address
 }
 
+/* UNUSED 
 pub fn format_kcontact(contact: Contact) -> Kcontact {
     Kcontact {
         uid: contact.uid.as_bytes().to_owned(),
@@ -22,6 +22,7 @@ pub fn format_kcontact(contact: Contact) -> Kcontact {
         pub_key: contact.get_pubkey().to_vec(),
     }
 }
+*/
 
 pub fn to_gossip(auction: &AuctionData) -> AuctionGossip {
     let id = |bytes: &Vec<u8>| {

@@ -77,7 +77,7 @@ impl Bucket {
             },
         }
     }
-
+/* UNUSED
     pub fn remove(&mut self, node: Box<Contact>) {
         let mut count = 0;
         for i in self.0.iter() {
@@ -88,7 +88,7 @@ impl Bucket {
             count +=1;
         }
     }
-
+*/
     pub fn move_to_tail(&mut self, node: Box<Contact>) {
         let mut count = 0;
         for i in self.0.iter() {
@@ -120,11 +120,11 @@ impl Bucket {
     pub fn is_full(&self) -> bool {
         self.0.len() == K_MAX_ENTRIES
     }
-
+/* UNUSED 
     pub fn len(&self) -> usize {
         self.0.len()
     }
-
+*/
     // returns the vector sorted by increasing distance to the given key
     pub fn get_sorted(&self, id: NodeID) -> Vec<Box<Contact>> {
         let dist = |a:&Box<Contact>, b: &Box<Contact>| {
@@ -179,7 +179,7 @@ impl Node {
     fn set_bucket(&mut self, bucket: Bucket) {
         self.bucket = Some(bucket);
     }
-
+/* UNUSED 
     #[inline]
     pub fn get_left(&self) -> Option<&Box<Node>> {
         self.left.as_ref()
@@ -199,7 +199,7 @@ impl Node {
     pub fn get_mut_bucket(&mut self) -> Option<&mut Bucket> {
         self.bucket.as_mut()
     }
-
+*/
     pub fn insert(&mut self,my_address: &str,con: Contact,validator: &NodeValidator, mut index: usize, mut chunk: usize) {
         if self.bucket.is_some() {
             if self.bucket.as_ref().unwrap().is_full() {
