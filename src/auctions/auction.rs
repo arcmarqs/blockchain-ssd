@@ -1,7 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use openssl::sha::Sha256;
 use primitive_types::H256;
-use std::hash::Hash;
+use std::{hash::Hash, collections::BTreeMap};
 
 use crate::p2p::key::NodeID;
 
@@ -97,7 +97,7 @@ impl AuctionInfo {
         self.starting_time
     }
 
-    pub fn bid(&mut self, bid_amout: f32, bidder: NodeID) -> Result<(),&str> {
+    pub fn bid(&mut self, bid_amout: f32, bidder: NodeID) -> Result<(),&'static str> {
         if self.current_price >= bid_amout {
             Err("bid must be greater than current price")
         } else {
@@ -160,6 +160,21 @@ impl AuctionGossip{
             AuctionState::FINISHED => false,
         }
     }
+
+    pub fn bid(&mut self, bid_amout: f32) -> Result<(AuctionGossip),&'static str> {
+        if self.current_price >= bid_amout {
+            Err("bid must be greater than current price")
+        } else {
+            self.current_price = bid_amout;
+            Ok(self.clone())
+        }
+    }
+}
+
+impl Hash for AuctionGossip {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.auction_id.hash(state);
+    }
 }
 
 impl PartialEq for AuctionGossip {
@@ -177,4 +192,62 @@ fn gen_auction_id(title: &String, seller: NodeID, start: DateTime<Utc>) -> H256 
     hasher.update(start.to_string().as_bytes());
     H256::from(hasher.finish())
 
+}
+
+#[derive(Debug,Clone)]
+pub struct Slotmap {
+    map: BTreeMap<i32,AuctionGossip>,
+    index: i32,
+}
+
+impl Slotmap {
+    pub fn new() -> Slotmap {
+        Slotmap {
+            map: BTreeMap::new(),
+            index: 0,
+        }
+    }
+
+    pub fn get_mut(&mut self,index: i32) -> Option<&mut AuctionGossip> {
+        self.map.get_mut(&index)
+    }
+
+    pub fn insert(&mut self, gossip: AuctionGossip) -> i32 {
+        let mut count = 0;
+        for val in self.map.values_mut() {
+            if &gossip == val {
+                self.map.remove(&count);
+                self.map.insert(count, gossip);
+                return count;
+            }
+            count +=1;
+        }
+        self.map.insert(self.index, gossip);
+        self.index += 1;
+        self.index
+    }
+
+    pub fn remove(&mut self, gossip: AuctionGossip) -> Option<AuctionGossip> {
+        let mut count = 0;
+
+        for val in self.map.values() {
+          if val == &gossip {
+              break;
+          }
+            count +=1;
+        }
+        self.map.remove(&count)
+    }
+
+    pub fn lookup_value(&self, gossip: AuctionGossip) -> Option<i32>{
+        let mut count = 0;
+
+        for val in self.map.values() {
+          if val == &gossip {
+              return Some(count);
+          }
+            count +=1;
+        }
+        None
+    }
 }

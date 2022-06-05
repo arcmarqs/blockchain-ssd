@@ -91,8 +91,10 @@ impl Kademlia for KademliaProtocol {
         if let Ok(req_hash) = Signer::validate_strong_req(self.node.get_validator(),&header,&remote_addr.to_string(),&databuf) {
             self.insert_update(header.my_id,&header.pub_key,header.address);
             let value = to_gossip(&value);
-            self.node.store_value(key, value);
             let timestamp = self.node.compare(header.timestamp);
+            if timestamp == header.timestamp +1 {
+            self.node.store_value(key, value, header.timestamp);
+            }
             let reply = StoreRepl {
                 header: Some( Header { 
                     my_id: self.node.uid.as_bytes().to_owned(),

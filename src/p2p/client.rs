@@ -124,18 +124,27 @@ impl Client {
         Ok(())
     }
 
-    pub async fn annouce_auction(&self, auct: AuctionGossip) {
+    pub async fn annouce_auction(&self, auct: AuctionGossip) -> Result<(), &'static str> {
         let boot_key = NodeID::from_vec(BOOT_ID.to_vec());
         let bootstrap_closest = self.send_fnode(boot_key).await;
 
         for con in bootstrap_closest {
             self.send_store(boot_key,auct.clone(),con).await;
         }
+        Ok(())
     }
 
-    pub async fn get_avaliable_auction(&self) -> Option<Vec<AuctionGossip>> {
+    pub async fn get_avaliable_auctions(&self) -> Option<Vec<AuctionGossip>> {
         let boot_key = NodeID::from_vec(BOOT_ID.to_vec());
         self.send_fvalue(boot_key).await
+    }
+
+    pub async fn subscribe_auction(&self, gossip: AuctionGossip) { 
+        let k_closest = self.send_fnode(gossip.get_seller()).await;
+        
+        for con in k_closest {
+            self.send_store(self.get_uid(),gossip.clone(),con);
+        }
     }
 
     pub async fn send_fnode(&self, key: NodeID) -> Vec<Contact> {
@@ -163,7 +172,7 @@ impl Client {
         info.get_k_closest()
     }
 
-    async fn send_fvalue(&self, key: NodeID) -> Option<Vec<AuctionGossip>> {
+   pub async fn send_fvalue(&self, key: NodeID) -> Option<Vec<AuctionGossip>> {
         if let Some(maybe_value) = self.node.retrieve(key) {
             return Some(maybe_value);
         }
