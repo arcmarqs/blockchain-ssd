@@ -1,6 +1,5 @@
 use std::{sync::{Arc, atomic::AtomicU64}, collections::HashSet, cmp::Ordering};
 use futures::future::join_all;
-use log::warn;
 use parking_lot::{RwLock, Mutex};
 use prost::Message;
 use tonic::Request;
@@ -231,7 +230,7 @@ impl Client {
                         }
                     }
                  }
-                Err(_) => warn!("failed to unwrap message"),    
+                Err(_) => println!("failed to unwrap message"),    
             }
         }
         None
@@ -354,12 +353,12 @@ async fn a_lookup(key: NodeID, info: Arc<FNodeManager>) {
                         }
                      },
                      Err(err) => {
-                         warn!("node {:?} didn't respond: {} ", &node.address, err);
+                         println!("node {:?} didn't respond: {} ", &node.address, err);
                      },
                  };
              }
              Err(err) =>{
-                 warn!("address {:?} unreachable, removing from route table: {}", &node.address,err);
+                 println!("address {:?} unreachable, removing from route table: {}", &node.address,err);
                  //node still in visited so it's not contacted again.
                  info.insert_vn(node.uid);
              }  
