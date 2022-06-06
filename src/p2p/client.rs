@@ -12,7 +12,7 @@ use super::{
     key::{NodeID, NodeValidator}, 
     kad::KadNode, 
     signatures::Signer,
-    util::{gen_cookie, format_address, to_auction_data, encode_store, to_gossip_vec, grpc_transaction}, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self, PingM, BroadcastReq}
+    util::{gen_cookie, format_address, to_auction_data, encode_store, to_gossip_vec, grpc_transaction, encode_fvalue}, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self, PingM, BroadcastReq}
 };
 
 const PARALLEL_LOOKUPS: i32 = 3;
@@ -219,8 +219,7 @@ impl Client {
                     let response = res.into_inner();
                     let header = response.header.unwrap();
                     let data = response.has_value.unwrap();
-                    let mut databuf = Vec::new();
-                    data.encode(&mut databuf);
+                    let databuf = encode_fvalue(&data, key);
                     if let Ok(()) = Signer::validate_strong_rep(self.node.get_validator(),&header,&contact.address,&databuf,&hash) {
                         match data {
                             kademlia::f_value_repl::HasValue::Node(_) => continue,
