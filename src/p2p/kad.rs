@@ -64,6 +64,11 @@ impl KadNode {
     pub fn print_rtable(&self) {
         println!("{:?}",self.rtable.try_read().unwrap().head);
     }
+
+    pub fn print_store(&self) {
+        println!("{:?}",self.data_store.try_read().unwrap());
+    }
+
     pub fn print_blockchain(&self) {
         self.miner.print_blockchain()
     }

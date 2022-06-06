@@ -81,6 +81,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           assert_eq!(command.len(),1);
           let _ = auctpeer.update_subscribed().await;
         },
+        "print_store" => {
+          assert_eq!(command.len(),1);
+          auctpeer.client.print_store()
+        }
 
         "exit" => {
           return Ok(());

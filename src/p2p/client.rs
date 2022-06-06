@@ -118,6 +118,10 @@ impl Client {
         self.node.get_uid()
     }
 
+    pub fn print_store(&self) {
+        self.node.print_store();
+    }
+
 /* UNUSED
     pub fn get_address(&self) -> String {
         self.node.address.clone()
@@ -162,7 +166,7 @@ impl Client {
         let k_closest = self.send_fnode(gossip.get_seller()).await;
         
         for con in k_closest {
-            let _ = self.send_store(self.get_uid(),gossip.clone(),con);
+            let _ = self.send_store(self.get_uid(),gossip.clone(),con).await;
         }
     }
 
@@ -273,6 +277,7 @@ impl Client {
         let my_closest = self.node.lookup(self.get_uid());
         let timestamp = self.node.increment_broadcast();
         let data = grpc_transaction(data.clone());
+        println!("Broadcasting block");
     
         for contact in my_closest {
             let connection = KademliaClient::connect(format_address(contact.address)).await; 
@@ -389,6 +394,9 @@ fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut
                 Some(Ordering::Less) => {
                     k_closest.push(ctc_node.clone());
                     local_visit.push(ctc_node.clone());
+                    if closest_to_contact.is_empty() {
+                        break
+                    }
                     closest_to_contact.remove(_index);
                 },
                 Some(_) =>continue,
