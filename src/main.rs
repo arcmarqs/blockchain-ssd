@@ -45,7 +45,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Currently on bootstrap node");
           } else {
             let _ = auctpeer.client.bootstrap().await;
-            auctpeer.client.print_rtable();
           }
         },
         "new_auction" => {
@@ -53,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           let title = command[1].to_string();
           let initial_price = command[2].parse::<f32>().unwrap();
           let duration = command[3].parse::<i64>().unwrap();
-          auctpeer.new_auction(title,duration,initial_price);
+          auctpeer.new_auction(title,duration,initial_price).await;
         },
         "search_auctions" => {
           assert_eq!(command.len(),1);
@@ -68,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "transaction" => {
           assert_eq!(command.len(),2);
          let index = command[1].parse::<i32>().unwrap();
-         auctpeer.fulfill_transaction(index);
+         auctpeer.fulfill_transaction(index).await;
         },
         "print_blockchain" => {
           assert_eq!(command.len(),1);
