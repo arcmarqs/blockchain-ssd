@@ -14,7 +14,7 @@ enum LastSeen {
     Seen(DateTime<Utc>),
 }
 
-#[derive(Debug,Clone,Hash,PartialEq,Eq,Ord,PartialOrd)]
+#[derive(Debug,Clone,Hash,Ord,PartialOrd)]
 pub struct Contact {
     pub(crate) uid: NodeID,
     pub(crate) address: String,
@@ -49,6 +49,12 @@ impl Contact {
     }
 }
 
+impl PartialEq for Contact {
+    fn eq(&self, other: &Self) -> bool {
+        self.uid == other.uid 
+    }
+}
+impl Eq for Contact {}
 #[derive(Debug,Default,Clone)]
 pub struct Bucket(VecDeque<Box<Contact>>);
 
@@ -60,7 +66,7 @@ impl Bucket {
     pub fn insert(&mut self,mut node: Box<Contact>) {
         let mut index = 0;
         for i in self.0.iter() {
-            if &node ==  i{
+            if *node ==  **i{
                 break;
             }
             index +=1;

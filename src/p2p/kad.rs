@@ -64,6 +64,11 @@ impl KadNode {
     pub fn print_rtable(&self) {
         println!("{:?}",self.rtable.try_read().unwrap().head);
     }
+
+    pub fn print_store(&self) {
+        println!("{:?}",self.data_store.try_read().unwrap());
+    }
+
     pub fn print_blockchain(&self) {
         self.miner.print_blockchain()
     }
@@ -219,7 +224,7 @@ impl KadNode {
         let formated_value = to_auction_data(value);
         let timestamp =  self.increment();
         let databuf: Vec<u8> = encode_store(&formated_value,target_key);
-        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.address,databuf);
+        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.address,&databuf);
         let request = StoreReq {
                 header: Some( Header {
                     my_id: self.uid.as_bytes().to_owned(),
@@ -263,7 +268,7 @@ impl KadNode {
                         timestamp, 
                         rdata:  Some(super::kademlia::broadcast_req::Rdata::Block(data.clone())),
                     });
-                    let _ = channel.broadcast(broadcast_message);
+                    let _ = channel.broadcast(broadcast_message).await;
                 },
                 Err(_) => continue,
             }

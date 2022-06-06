@@ -12,27 +12,27 @@ use super::{
     key::{NodeID, NodeValidator}, 
     kad::KadNode, 
     signatures::Signer,
-    util::{gen_cookie, format_address, to_auction_data, encode_store, to_gossip_vec, grpc_transaction}, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self, PingM, BroadcastReq}
+    util::{gen_cookie, format_address, to_auction_data, encode_store, to_gossip_vec, grpc_transaction, encode_fvalue}, K_MAX_ENTRIES, kademlia::{kademlia_client::KademliaClient, FValueReq, Header, StoreReq, FNodeReq, Kcontact, self, PingM, BroadcastReq}
 };
 
 const PARALLEL_LOOKUPS: i32 = 3;
 
 static BOOTSTRAP_KEY: &'static [u8] = &[45, 45, 45, 45, 45, 66, 69, 71, 73, 78, 32, 80, 85, 66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 45, 45, 45, 10, 77, 73, 73, 66, 73, 106, 65, 78, 
-                                        66, 103, 107, 113, 104, 107, 105, 71, 57, 119, 48, 66, 65, 81, 69, 70, 65, 65, 79, 67, 65, 81, 56, 65, 77, 73, 73, 66, 67, 103, 75, 67, 65, 
-                                        81, 69, 65, 113, 65, 101, 79, 85, 75, 81, 102, 73, 70, 70, 107, 109, 53, 112, 120, 79, 110, 110, 86, 10, 66, 110, 48, 97, 103, 114, 70, 97, 
-                                        103, 122, 99, 118, 83, 113, 106, 78, 85, 81, 97, 99, 108, 67, 118, 47, 74, 71, 76, 122, 106, 105, 52, 118, 72, 69, 77, 81, 119, 52, 51, 47, 
-                                        116, 83, 69, 79, 104, 83, 121, 81, 43, 86, 75, 88, 114, 68, 107, 116, 73, 86, 43, 120, 49, 122, 79, 76, 10, 111, 67, 101, 77, 78, 101, 114, 
-                                        51, 111, 53, 121, 71, 87, 117, 89, 52, 98, 80, 70, 117, 56, 48, 105, 80, 114, 98, 54, 109, 79, 114, 47, 110, 43, 74, 115, 121, 97, 114, 67, 
-                                        111, 101, 50, 74, 122, 85, 78, 71, 111, 82, 81, 105, 71, 119, 71, 70, 115, 79, 84, 73, 118, 114, 121, 88, 108, 10, 78, 71, 65, 109, 86, 112, 
-                                        57, 121, 74, 76, 110, 70, 100, 121, 114, 113, 105, 77, 89, 50, 77, 113, 102, 98, 76, 74, 50, 116, 55, 56, 52, 84, 118, 119, 116, 65, 88, 77, 
-                                        47, 83, 117, 47, 78, 118, 53, 114, 117, 50, 110, 114, 48, 82, 118, 109, 100, 102, 47, 109, 105, 56, 66, 50, 102, 53, 10, 65, 77, 52, 73, 98, 
-                                        72, 113, 113, 122, 89, 103, 84, 48, 102, 104, 107, 50, 70, 86, 122, 76, 113, 70, 68, 48, 79, 88, 89, 54, 83, 89, 115, 81, 101, 75, 75, 117, 
-                                        71, 49, 115, 108, 84, 80, 66, 110, 76, 90, 99, 87, 87, 116, 115, 56, 86, 118, 105, 50, 98, 70, 43, 116, 78, 75, 86, 10, 43, 65, 50, 68, 54, 
-                                        117, 51, 48, 113, 65, 52, 47, 110, 47, 87, 120, 117, 69, 51, 69, 68, 43, 68, 74, 81, 56, 115, 82, 76, 89, 57, 73, 82, 90, 111, 104, 87, 110, 
-                                        98, 77, 49, 68, 90, 82, 73, 114, 79, 110, 82, 55, 50, 119, 70, 100, 113, 117, 87, 100, 101, 120, 57, 57, 90, 98, 10, 84, 81, 73, 68, 65, 81, 
-                                        65, 66, 10, 45, 45, 45, 45, 45, 69, 78, 68, 32, 80, 85, 66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 45, 45, 45, 10];
+                                        66, 103, 107, 113, 104, 107, 105, 71, 57, 119, 48, 66, 65, 81, 69, 70, 65, 65, 79, 67, 65, 81, 56, 65, 77, 73, 73, 66, 67, 103, 75, 67, 65, 81, 
+                                        69, 65, 121, 85, 65, 113, 99, 113, 69, 112, 79, 120, 56, 110, 86, 105, 101, 90, 79, 110, 81, 54, 10, 68, 118, 104, 101, 85, 72, 72, 114, 57, 50, 
+                                        67, 55, 120, 107, 54, 99, 88, 122, 77, 120, 55, 87, 118, 66, 80, 102, 70, 116, 69, 122, 53, 97, 103, 122, 117, 87, 97, 119, 82, 99, 68, 105, 75, 
+                                        102, 76, 114, 116, 76, 86, 84, 54, 72, 71, 117, 65, 122, 87, 68, 83, 97, 87, 43, 65, 47, 10, 88, 83, 116, 55, 82, 82, 87, 104, 99, 67, 111, 86, 
+                                        110, 121, 88, 70, 74, 108, 89, 76, 88, 43, 79, 72, 82, 70, 104, 103, 82, 53, 57, 105, 111, 57, 113, 120, 109, 101, 122, 111, 102, 89, 107, 121, 
+                                        114, 81, 120, 78, 108, 75, 65, 105, 118, 108, 52, 107, 43, 104, 74, 86, 70, 84, 119, 122, 10, 103, 83, 71, 51, 116, 50, 57, 121, 112, 98, 79, 
+                                        119, 47, 99, 66, 77, 78, 118, 107, 51, 73, 74, 83, 111, 103, 74, 77, 113, 68, 68, 65, 111, 82, 57, 104, 99, 49, 89, 84, 112, 77, 85, 71, 75, 111, 
+                                        90, 52, 99, 86, 104, 70, 90, 52, 67, 112, 122, 54, 82, 78, 74, 81, 121, 87, 114, 10, 80, 107, 66, 54, 56, 112, 71, 106, 48, 65, 67, 74, 55, 88, 
+                                        47, 76, 50, 50, 51, 73, 85, 113, 116, 50, 103, 104, 87, 115, 102, 68, 56, 85, 90, 84, 100, 81, 116, 116, 51, 83, 49, 43, 104, 106, 109, 54, 66, 
+                                        56, 110, 107, 73, 43, 98, 66, 115, 104, 43, 106, 89, 55, 89, 114, 65, 82, 10, 116, 67, 67, 121, 57, 87, 109, 72, 100, 43, 116, 108, 74, 102, 69, 85, 
+                                        101, 80, 51, 75, 102, 57, 72, 119, 112, 86, 51, 56, 48, 78, 66, 110, 85, 97, 118, 56, 89, 70, 73, 107, 114, 106, 77, 81, 57, 114, 120, 116, 70, 
+                                        81, 119, 101, 49, 119, 70, 68, 66, 103, 119, 47, 72, 55, 79, 89, 10, 55, 81, 73, 68, 65, 81, 65, 66, 10, 45, 45, 45, 45, 45, 69, 78, 68, 32, 80, 85, 
+                                        66, 76, 73, 67, 32, 75, 69, 89, 45, 45, 45, 45, 45, 10];
                                 
-static BOOT_ID : &'static [u8] = &[128, 50, 160, 82, 60, 70, 232, 187, 174, 50, 44, 166, 190, 12, 230, 223, 97, 136, 241, 43, 218, 167, 192, 76, 236, 149, 99, 30, 62, 112, 182, 190];
+static BOOT_ID : &'static [u8] = &[35, 137, 227, 194, 190, 169, 155, 124, 206, 201, 32, 172, 3, 111, 113, 242, 103, 105, 209, 148, 214, 187, 197, 229, 94, 67, 96, 37, 29, 70, 185, 149];
 static BOOTSTRAP_IP : &str = "10.128.0.3:30030";
 
 #[derive(Debug)]
@@ -118,6 +118,10 @@ impl Client {
         self.node.get_uid()
     }
 
+    pub fn print_store(&self) {
+        self.node.print_store();
+    }
+
 /* UNUSED
     pub fn get_address(&self) -> String {
         self.node.address.clone()
@@ -162,7 +166,7 @@ impl Client {
         let k_closest = self.send_fnode(gossip.get_seller()).await;
         
         for con in k_closest {
-            let _ = self.send_store(self.get_uid(),gossip.clone(),con);
+            let _ = self.send_store(self.get_uid(),gossip.clone(),con).await;
         }
     }
 
@@ -201,7 +205,7 @@ impl Client {
             let address = format_address(contact.address.clone());
             let mut client = KademliaClient::connect(address.clone()).await.unwrap();  
             let timestamp = self.node.increment();
-            let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
+            let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes());
             let request = FValueReq {
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
@@ -219,8 +223,7 @@ impl Client {
                     let response = res.into_inner();
                     let header = response.header.unwrap();
                     let data = response.has_value.unwrap();
-                    let mut databuf = Vec::new();
-                    data.encode(&mut databuf);
+                    let databuf = encode_fvalue(&data, key);
                     if let Ok(()) = Signer::validate_strong_rep(self.node.get_validator(),&header,&contact.address,&databuf,&hash) {
                         match data {
                             kademlia::f_value_repl::HasValue::Node(_) => continue,
@@ -242,7 +245,7 @@ impl Client {
         let formated_value = to_auction_data(value);
         let timestamp =  self.node.increment();
         let databuf: Vec<u8> = encode_store(&formated_value,key);
-        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,databuf);
+        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,&databuf);
         let request = StoreReq {
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
@@ -274,6 +277,7 @@ impl Client {
         let my_closest = self.node.lookup(self.get_uid());
         let timestamp = self.node.increment_broadcast();
         let data = grpc_transaction(data.clone());
+        println!("Broadcasting block");
     
         for contact in my_closest {
             let connection = KademliaClient::connect(format_address(contact.address)).await; 
@@ -284,7 +288,7 @@ impl Client {
                         timestamp, 
                         rdata:  Some(super::kademlia::broadcast_req::Rdata::Transaction(data.clone())),
                     });
-                    let _ = channel.broadcast(broadcast_message);
+                    let _ = channel.broadcast(broadcast_message).await;
                 },
                 Err(_) => continue,
             }
@@ -390,6 +394,9 @@ fn insert_closest(k_closest:&mut Vec<Contact>, mut local_visit: Vec<Contact>,mut
                 Some(Ordering::Less) => {
                     k_closest.push(ctc_node.clone());
                     local_visit.push(ctc_node.clone());
+                    if closest_to_contact.is_empty() {
+                        break
+                    }
                     closest_to_contact.remove(_index);
                 },
                 Some(_) =>continue,

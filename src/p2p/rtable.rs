@@ -18,7 +18,9 @@ impl Rtable {
 
     //inserts the contact in the appropriated kbucket.
     pub fn insert(&mut self, my_address: &str, con: Contact, validator: &NodeValidator) {
-        self.head.insert(my_address, con, validator, 0, 0);
+        if con.address != my_address {
+            self.head.insert(my_address, con, validator, 0, 0);
+        }
     }
 
     //returns k closest nodes to the key

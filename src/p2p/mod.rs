@@ -10,6 +10,6 @@ mod util;
 mod kademlia {
     tonic::include_proto!("kadproto");
 }
-pub const K_MAX_ENTRIES: usize = 8;
+pub const K_MAX_ENTRIES: usize = 5;
 pub const C1: u32 = 8;
 pub const C2: u32 = 16;

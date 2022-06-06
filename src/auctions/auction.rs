@@ -130,7 +130,7 @@ impl AuctionGossip{
             auction_id: auction.auction_id,
             title: auction.info.get_title().to_owned(),
             seller: auction.info.seller,
-            buyer: auction.info.highest_bidder.unwrap(),
+            buyer: auction.info.seller,
             current_price: auction.info.current_price,
             state: auction.state,
         }
@@ -218,7 +218,7 @@ impl Slotmap {
     pub fn new() -> Slotmap {
         Slotmap {
             map: BTreeMap::new(),
-            index: 0,
+            index: -1,
         }
     }
 
@@ -240,8 +240,8 @@ impl Slotmap {
             }
             count +=1;
         }
-        self.map.insert(self.index, gossip);
         self.index += 1;
+        self.map.insert(self.index, gossip);
         self.index
     }
 /*  UNUSED
