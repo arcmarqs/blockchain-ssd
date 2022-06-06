@@ -218,7 +218,7 @@ impl Slotmap {
     pub fn new() -> Slotmap {
         Slotmap {
             map: BTreeMap::new(),
-            index: 0,
+            index: -1,
         }
     }
 

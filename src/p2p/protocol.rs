@@ -200,7 +200,7 @@ impl Kademlia for KademliaProtocol {
                 },
                 super::kademlia::broadcast_req::Rdata::Transaction(t) => {
                     self.node.store_transaction(to_data(t.clone()));
-                    let _ = self.node.mine_and_broadcast();
+                    let _ = self.node.mine_and_broadcast().await;
                 },
             }
             let my_closest = self.lookup(self.node.uid);
