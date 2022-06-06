@@ -268,7 +268,7 @@ impl KadNode {
                         timestamp, 
                         rdata:  Some(super::kademlia::broadcast_req::Rdata::Block(data.clone())),
                     });
-                    let _ = channel.broadcast(broadcast_message);
+                    let _ = channel.broadcast(broadcast_message).await;
                 },
                 Err(_) => continue,
             }
