@@ -64,6 +64,8 @@ impl Kademlia for KademliaProtocol {
         let header = req.header.unwrap();
         
         if let Ok(req_hash) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
+            println!("validated ping{:?}", remote_addr);
+
             self.insert_update(header.my_id,&header.pub_key,header.address);
             let timestamp = gen_cookie();
             let reply = PingM {
@@ -90,6 +92,7 @@ impl Kademlia for KademliaProtocol {
         let value = req.value.unwrap();
         let databuf = encode_store(&value,key);
         if let Ok(req_hash) = Signer::validate_strong_req(self.node.get_validator(),&header,&remote_addr.to_string(),&databuf) {
+            println!("validated store from {:?}", remote_addr);
             self.insert_update(header.my_id,&header.pub_key,header.address);
             let value = to_gossip(&value);
             let timestamp = self.node.compare(header.timestamp);
@@ -119,6 +122,7 @@ impl Kademlia for KademliaProtocol {
         let key_bytes = req.target_id;
         let header = req.header.unwrap();
         if let Ok(req_hash) = Signer::validate_strong_req(self.node.get_validator(),&header,&remote_addr.to_string(),&key_bytes) {
+            println!("validated find value from {:?}", remote_addr);
             self.insert_update(header.my_id,&header.pub_key,header.address);
             let lookup_key = NodeID::from_vec(key_bytes);
             let has_value : HasValue;
@@ -154,6 +158,8 @@ impl Kademlia for KademliaProtocol {
         let header = req.header.unwrap();
         let key_bytes = req.target_id;
         if let Ok(req_hash) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
+            println!("validated find node {:?}", remote_addr);
+
             let lookup_key = NodeID::from_vec(key_bytes);
             let k = Kclosest {
                 node : self.lookup(lookup_key),
@@ -180,6 +186,7 @@ impl Kademlia for KademliaProtocol {
     }
 
     async fn broadcast(&self, request: Request<BroadcastReq>) -> Result<Response<Empty>,Status> {
+        println!("broadcast{:?}", request.remote_addr());
         let req = request.into_inner();
         let timestamp = self.node.compare_broadcast(req.timestamp);
         if timestamp == req.timestamp + 1 {
@@ -221,6 +228,7 @@ impl Kademlia for KademliaProtocol {
         let header = req.header.unwrap();
         
         if let Ok(_) = Signer::validate_weak_req(self.node.get_validator(),&header,&remote_addr.to_string()) {
+            println!("validated chain{:?}", remote_addr);
             let _timestamp = self.node.compare(header.timestamp);
             let (tx, rx) = mpsc::channel(4);
             let chain= self.node.get_chain();

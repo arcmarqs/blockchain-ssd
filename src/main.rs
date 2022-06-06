@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
           if &is_bootstrap == "bootstrap"{
             println!("Currently on bootstrap node");
           } else {
-            let _ = auctpeer.client.bootstrap();
+            let _ = auctpeer.client.bootstrap().await;
             auctpeer.client.print_rtable();
           }
         },
