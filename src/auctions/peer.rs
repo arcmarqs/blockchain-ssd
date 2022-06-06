@@ -27,18 +27,18 @@ impl AuctionPeer{
     }
 
     // only an exemple to test the blockchain
-    pub fn fulfill_transaction(&self,index: i32) {
+    pub async fn fulfill_transaction(&self,index: i32) {
         let id = self.known_auctions.get(index).unwrap().clone();
         if self.my_auctions.contains_key(&id.get_auction_id()){
         let data = Data::from_auction(id);
-        let _ = self.client.broadcast_transaction(data);
+        let _ = self.client.broadcast_transaction(data).await;
         }
     }
 
-    pub fn new_auction(&mut self, title: String, duration : i64, initial_value: f32) {
+    pub async fn new_auction(&mut self, title: String, duration : i64, initial_value: f32) {
         let auction = Auction::new(title,self.client.get_uid(), duration, initial_value);
         let auction_subscribers: Vec<NodeID> = Vec::new();
-        let _ = self.client.annouce_auction(auction.to_gossip());
+        let _ = self.client.annouce_auction(auction.to_gossip()).await;
         self.my_auctions.insert(auction.get_auction_id(),auction_subscribers);
     }
 

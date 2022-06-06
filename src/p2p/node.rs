@@ -66,7 +66,7 @@ impl Bucket {
     pub fn insert(&mut self,mut node: Box<Contact>) {
         let mut index = 0;
         for i in self.0.iter() {
-            if &node ==  i{
+            if *node ==  **i{
                 break;
             }
             index +=1;
