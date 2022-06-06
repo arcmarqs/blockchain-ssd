@@ -240,8 +240,8 @@ impl Slotmap {
             }
             count +=1;
         }
-        self.map.insert(self.index, gossip);
         self.index += 1;
+        self.map.insert(self.index, gossip);
         self.index
     }
 /*  UNUSED
