@@ -96,7 +96,7 @@ impl Kademlia for KademliaProtocol {
             self.insert_update(header.my_id,&header.pub_key,header.address);
             let value = to_gossip(&value);
             let timestamp = self.node.compare(header.timestamp);
-            if timestamp == header.timestamp +1 {
+            if timestamp == header.timestamp + 1 {
             let _ = self.node.store_value(key, value);
             }
             let reply = StoreRepl {

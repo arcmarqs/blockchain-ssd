@@ -219,7 +219,7 @@ impl KadNode {
         let formated_value = to_auction_data(value);
         let timestamp =  self.increment();
         let databuf: Vec<u8> = encode_store(&formated_value,target_key);
-        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.address,databuf);
+        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.address,&databuf);
         let request = StoreReq {
                 header: Some( Header {
                     my_id: self.uid.as_bytes().to_owned(),

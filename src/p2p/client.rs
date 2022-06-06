@@ -201,7 +201,7 @@ impl Client {
             let address = format_address(contact.address.clone());
             let mut client = KademliaClient::connect(address.clone()).await.unwrap();  
             let timestamp = self.node.increment();
-            let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes().to_owned());
+            let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,key.as_bytes());
             let request = FValueReq {
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
@@ -242,7 +242,7 @@ impl Client {
         let formated_value = to_auction_data(value);
         let timestamp =  self.node.increment();
         let databuf: Vec<u8> = encode_store(&formated_value,key);
-        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,databuf);
+        let (hash,request_signature) = Signer::sign_strong_header_req(timestamp,contact.get_pubkey(),&self.node.address,&databuf);
         let request = StoreReq {
                 header: Some( Header {
                     my_id: self.node.uid.as_bytes().to_owned(),
