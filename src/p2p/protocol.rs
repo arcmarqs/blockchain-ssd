@@ -96,9 +96,9 @@ impl Kademlia for KademliaProtocol {
             self.insert_update(header.my_id,&header.pub_key,header.address);
             let value = to_gossip(&value);
             let timestamp = self.node.compare(header.timestamp);
-            if timestamp == header.timestamp + 1 {
+            //if timestamp == header.timestamp + 1 {
             let _ = self.node.store_value(key, value);
-            }
+            //}
             let reply = StoreRepl {
                 header: Some( Header { 
                     my_id: self.node.uid.as_bytes().to_owned(),
@@ -186,7 +186,7 @@ impl Kademlia for KademliaProtocol {
     }
 
     async fn broadcast(&self, request: Request<BroadcastReq>) -> Result<Response<Empty>,Status> {
-        println!("broadcast{:?}", request.remote_addr());
+        println!("broadcast {:?}", request.remote_addr());
         let req = request.into_inner();
         let timestamp = self.node.compare_broadcast(req.timestamp);
         if timestamp == req.timestamp + 1 {
