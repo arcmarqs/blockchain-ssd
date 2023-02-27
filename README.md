@@ -1,5 +1,7 @@
 # Distributed Auction Platform
-Systems and data security project
+Project for Systems and Data Security Course (CC4030) (2021/2022)
+
+Very basic cli auction system that runs on top of a Kademlia DHT and implements a PoW Blockchain for recording transactions.
 
 # How to run
 On the root directory:
